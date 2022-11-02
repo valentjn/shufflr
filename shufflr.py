@@ -13,6 +13,7 @@ import logging
 import lzma
 import math
 import pathlib
+import shutil
 import statistics
 import sys
 import tempfile
@@ -350,15 +351,11 @@ def ShuffleTracks(tracks: Set[Track], verbose: int = 0) -> List[Track]:
   shuffledTrackList = [trackList[trackIndex] for trackIndex in shuffledTrackIndices]
 
   if verbose >= 0:
-    previousTrackIndex = None
-
-    for trackIndex in shuffledTrackIndices:
-      if previousTrackIndex is not None:
-        gLogger.info(f"    | distance = {distanceMatrix[previousTrackIndex, trackIndex]:.2f}")
-
-      track = trackList[trackIndex]
-      gLogger.info("{} - {}".format(", ".join(artist.name for artist in track.GetArtists()), track.name))
-      previousTrackIndex = trackIndex
+    distances = [
+      distanceMatrix[previousTrackIndex, currentTrackIndex]
+      for previousTrackIndex, currentTrackIndex in zip(shuffledTrackIndices[:-1], shuffledTrackIndices[1:])
+    ]
+    print(FormatTracks(shuffledTrackList, distances))
 
   return shuffledTrackList
 
@@ -423,6 +420,39 @@ def TravelingSalespersonDistanceCallback(
     int,
     integerDistanceMatrix[routingIndexManager.IndexToNode(fromIndex), routingIndexManager.IndexToNode(toIndex)],
   )
+
+
+def FormatTracks(tracks: Sequence[Track], distances: Sequence[float]) -> str:
+  numberOfThreeDigitColumns = 9
+  terminalWidth = shutil.get_terminal_size().columns
+  artistAndTrackNameLength = terminalWidth - numberOfThreeDigitColumns * 5 - 3
+  artistNameLength = artistAndTrackNameLength // 2
+  trackNameLength = artistAndTrackNameLength - artistNameLength
+  formatString = (
+    f"{{:{artistNameLength}}}  {{:{trackNameLength}}}  {{:>3}}  "
+    f"{{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}"
+  )
+  header = formatString.format("ARTIST", "TITLE", "DST", "ACS", "DNC", "ENR", "INS", "LVN", "SPC", "TMP", "VLN")
+  body = "\n".join(
+    formatString.format(
+      ", ".join(artist.name for artist in track.GetArtists())[:artistNameLength],
+      track.name[:trackNameLength],
+      (FormatFraction(min(distances[trackIndex - 1], 9.99)) if trackIndex > 0 else "-"),
+      FormatFraction(track.acousticness),
+      FormatFraction(track.danceability),
+      FormatFraction(track.energy),
+      FormatFraction(track.instrumentalness),
+      FormatFraction(track.liveness),
+      FormatFraction(track.speechiness),
+      str(round(track.tempo)),
+      FormatFraction(track.valence),
+    ) for trackIndex, track in enumerate(tracks)
+  )
+  return f"{header}\n{body}"
+
+
+def FormatFraction(fraction: float) -> str:
+  return str(round(100 * fraction))
 
 
 def Main() -> None:
