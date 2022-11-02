@@ -42,6 +42,8 @@ class Configuration(object):
   def __init__(self) -> None:
     self.clientID: Optional[str] = "c322a584f11a4bdcaaac83b0776bd021"
     self.clientSecret: Optional[str] = None
+    self.inputPlaylistSpecifiers: List[str] = ["liked"]
+    self.inputPlaylistWeights: Optional[List[Optional[float]]] = None
     self.redirectURI: Optional[str] = "http://127.0.0.1:11793/"
     self.verbose: int = 0
 
@@ -58,6 +60,32 @@ class Configuration(object):
     outputArgumentGroup = argumentParser.add_argument_group("output options")
     outputArgumentGroup.add_argument("-q", "--quiet", action="store_true", help="Only print warnings and errors.")
     outputArgumentGroup.add_argument("-v", "--verbose", action="count", default=0, help="Print log messages.")
+
+    playlistArgumentGroup = argumentParser.add_argument_group("playlist options")
+    playlistArgumentGroup.add_argument(
+      "--inputPlaylists",
+      nargs="+",
+      default=defaultConfiguration.inputPlaylistSpecifiers,
+      dest="inputPlaylistSpecifiers",
+      help="Playlist(s) to take the songs to be shuffled from. "
+      "Use the format 'USER_DISPLAY_NAME/PLAYLIST_DISPLAY_NAME' for the playlist of another user or just "
+      "'PLAYLIST_DISPLAY_NAME' for one of your playlists. "
+      "To use the playlist of your liked songs, use 'liked' or 'saved' (this is the default). "
+      "Note that Spotify currently does not provide a way to access the playlist of liked songs of other users.",
+    )
+    playlistArgumentGroup.add_argument(
+      "--inputPlaylistWeights",
+      type=lambda argument: (None if argument == "*" else float(argument)),
+      nargs="+",
+      help="Weights for the shuffling of the input playlist. Specify one weight per input playlist. "
+      "If you use 1 for all playlists, then the target playlist will contain equally many songs from each "
+      "input playlist. "
+      "If you change the value for a playlist to 2, then twice as many songs will be taken from that playlist "
+      "compared to the other playlists. "
+      "Use the special value '*' to include all songs of a playlist. "
+      "This playlist is then discarded for the computation of the number of songs for the other playlists. "
+      "The default is to use '*' for all input playlists.",
+    )
 
     authentificationArgumentGroup = argumentParser.add_argument_group("authentification options")
     authentificationArgumentGroup.add_argument("--clientID", default=defaultConfiguration.clientID,
@@ -192,6 +220,7 @@ class Client(object):
     self._requestsCachePath = pathlib.Path(tempfile.gettempdir()) / "shufflr-requests-cache.sqlite"
     self._compressedRequestsCachePath = self._requestsCachePath.parent / f"{self._requestsCachePath.name}.xz"
     self._trackCache: Dict[str, Track] = {}
+    self._userIDCache: Dict[str, str] = {}
     self.DecompressRequestsCache()
     self._CreateSpotify()
 
@@ -266,7 +295,7 @@ class Client(object):
     gLogger.info("Querying current user ID...")
     return cast(str, self._spotify.current_user()["id"])
 
-  def QuerySavedTracksOfCurrentUser(self) -> List[Track]:
+  def QuerySavedTrackIDsOfCurrentUser(self) -> List[str]:
     pageSize = 50
     gLogger.info("Querying saved tracks of current user...")
     numberOfSavedTracks = self._spotify.current_user_saved_tracks(limit=1)["total"]
@@ -276,7 +305,7 @@ class Client(object):
       result = self._spotify.current_user_saved_tracks(limit=pageSize, offset=offset)
       trackIDs.extend(resultTrack["track"]["id"] for resultTrack in result["items"])
 
-    return self.QueryTracks(trackIDs)
+    return trackIDs
 
   def QueryArtist(self, artistID: str) -> Artist:
     return self.QueryArtists([artistID])[0]
@@ -340,8 +369,24 @@ def FormatNoun(number: int, noun: str) -> str:
   return f"1 {noun}" if number == 1 else f"{number} {noun}s"
 
 
-def CollectTracks(client: Client) -> Set[Track]:
-  return set(client.QuerySavedTracksOfCurrentUser())
+def CollectTracks(
+  client: Client,
+  playlistSpecifiers: List[str],
+  playlistWeights: Optional[List[Optional[float]]],
+) -> Set[Track]:
+  if playlistWeights is None: playlistWeights = cast(List[Optional[float]], len(playlistSpecifiers) * [None])
+  trackIDsOfPlaylists = []
+
+  for playlistSpecifier in playlistSpecifiers:
+    if playlistSpecifier in ["liked", "saved"]:
+      trackIDOfPlaylist = client.QuerySavedTrackIDsOfCurrentUser()
+    else:
+      pass
+
+    trackIDsOfPlaylists.append(trackIDOfPlaylist)
+
+  trackIDs = [trackID for trackIDOfPlaylist in trackIDsOfPlaylists for trackID in trackIDOfPlaylist]
+  return set(client.QueryTracks(trackIDs))
 
 
 def ShuffleTracks(tracks: Set[Track], verbose: int = 0) -> List[Track]:
@@ -469,7 +514,7 @@ def Main() -> None:
   if configuration.verbose >= 1: http.client.HTTPConnection.debuglevel = 2
 
   with Client(configuration.clientID, configuration.clientSecret, configuration.redirectURI) as client:
-    tracks = CollectTracks(client)
+    tracks = CollectTracks(client, configuration.inputPlaylistSpecifiers, configuration.inputPlaylistWeights)
     shuffledTracks = ShuffleTracks(tracks, verbose=configuration.verbose)
 
 
