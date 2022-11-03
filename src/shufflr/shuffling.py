@@ -97,16 +97,16 @@ def TravelingSalespersonDistanceCallback(
 
 
 def FormatTracks(tracks: Sequence[shufflr.track.Track], distances: Sequence[float]) -> str:
-  numberOfThreeDigitColumns = 9
+  lengthOfRemainingColumns = 50
   terminalWidth = shutil.get_terminal_size().columns
-  artistAndTrackNameLength = terminalWidth - numberOfThreeDigitColumns * 5 - 3
+  artistAndTrackNameLength = terminalWidth - lengthOfRemainingColumns - 3
   artistNameLength = artistAndTrackNameLength // 2
   trackNameLength = artistAndTrackNameLength - artistNameLength
   formatString = (
     f"{{:{artistNameLength}}}  {{:{trackNameLength}}}  {{:>3}}  "
-    f"{{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}"
+    f"{{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}  {{:>3}}"
   )
-  header = formatString.format("ARTIST", "TITLE", "DST", "ACS", "DNC", "ENR", "INS", "LVN", "SPC", "TMP", "VLN")
+  header = formatString.format("ARTIST", "TITLE", "DST", "ACS", "DNC", "ENR", "INS", "KEY", "LVN", "SPC", "TMP", "VLN")
   body = "\n".join(
     formatString.format(
       ", ".join(artist.name for artist in track.GetArtists())[:artistNameLength],
@@ -116,6 +116,7 @@ def FormatTracks(tracks: Sequence[shufflr.track.Track], distances: Sequence[floa
       FormatFraction(track.danceability),
       FormatFraction(track.energy),
       FormatFraction(track.instrumentalness),
+      str(track.key),
       FormatFraction(track.liveness),
       FormatFraction(track.speechiness),
       str(round(track.tempo)),

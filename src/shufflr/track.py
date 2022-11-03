@@ -5,13 +5,107 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import enum
 import math
 import statistics
-from typing import List, Iterable, TYPE_CHECKING
+from typing import List, Iterable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
   import shufflr.artist as artist
   import shufflr.client as client
+
+
+class Key(enum.Enum):
+  cMajor = 0
+  cMinor = 1
+  dFlatMajor = 2
+  dFlatMinor = 3
+  dMinor = 4
+  dMajor = 5
+  eFlatMajor = 6
+  eFlatMinor = 7
+  eMajor = 8
+  eMinor = 9
+  fMajor = 10
+  fMinor = 11
+  fSharpMajor = 12
+  fSharpMinor = 13
+  gMajor = 14
+  gMinor = 15
+  aFlatMajor = 16
+  aFlatMinor = 17
+  aMajor = 18
+  aMinor = 19
+  bFlatMajor = 20
+  bFlatMinor = 21
+  bMinor = 22
+  bMajor = 23
+
+  def __str__(self) -> str:
+    letter = self.name[0].upper() if "Major" in self.name else self.name[0].lower()
+
+    if "Flat" in self.name:
+      suffix = "\u266d"
+    elif "Sharp" in self.name:
+      suffix = "\u266f"
+    else:
+      suffix = ""
+
+    return letter + suffix
+
+  @staticmethod
+  def FromSpotifyNotation(spotifyKey: int, spotifyMode: int) -> Optional["Key"]:
+    if spotifyKey == -1:
+      return None
+    elif spotifyMode == 1:
+      return [Key.cMajor, Key.dFlatMajor, Key.dMajor, Key.eFlatMajor, Key.eMajor, Key.fMajor,
+              Key.fSharpMajor, Key.gMajor, Key.aFlatMajor, Key.aMajor, Key.bFlatMajor, Key.bMajor][spotifyKey]
+    else:
+      return [Key.cMinor, Key.dFlatMinor, Key.dMinor, Key.eFlatMinor, Key.eMinor, Key.fMinor,
+              Key.fSharpMinor, Key.gMinor, Key.aFlatMinor, Key.aMinor, Key.bFlatMinor, Key.bMinor][spotifyKey]
+
+  def IsCompatible(self, other: "Key") -> bool:
+    majorKeys = [
+      Key.cMajor, Key.gMajor, Key.dMajor, Key.aMajor, Key.eMajor, Key.bMajor,
+      Key.fSharpMajor, Key.dFlatMajor, Key.aFlatMajor, Key.eFlatMajor, Key.bFlatMajor, Key.fMajor,
+    ]
+    minorKeys = [
+      Key.aMinor, Key.eMinor, Key.bMinor, Key.fSharpMinor, Key.dFlatMinor, Key.aFlatMinor,
+      Key.eFlatMinor, Key.bFlatMinor, Key.fMinor, Key.cMinor, Key.gMinor, Key.dMinor,
+    ]
+
+    selfMajorIndex = Key._FindKey(self, majorKeys)
+    selfMinorIndex = Key._FindKey(self, minorKeys)
+    otherMajorIndex = Key._FindKey(other, majorKeys)
+    otherMinorIndex = Key._FindKey(other, minorKeys)
+
+    if (selfMajorIndex is not None) and (otherMajorIndex is not None):
+      return (
+        (selfMajorIndex == otherMajorIndex) or
+        (selfMajorIndex == otherMajorIndex - 1) or
+        (selfMajorIndex == otherMajorIndex + 1) or
+        (selfMajorIndex == otherMajorIndex - 11) or
+        (selfMajorIndex == otherMajorIndex + 11)
+      )
+    elif (selfMinorIndex is not None) and (otherMinorIndex is not None):
+      return (
+        (selfMinorIndex == otherMinorIndex) or
+        (selfMinorIndex == otherMinorIndex - 1) or
+        (selfMinorIndex == otherMinorIndex + 1) or
+        (selfMinorIndex == otherMinorIndex - 11) or
+        (selfMinorIndex == otherMinorIndex + 11)
+      )
+    elif (selfMajorIndex is not None) and (otherMinorIndex is not None):
+      return selfMajorIndex == otherMinorIndex
+    else:
+      return selfMinorIndex == otherMajorIndex
+
+  @staticmethod
+  def _FindKey(key: "Key", keys: List["Key"]) -> Optional[int]:
+    try:
+      return keys.index(key)
+    except ValueError:
+      return None
 
 
 class Track(object):
@@ -25,6 +119,7 @@ class Track(object):
     danceability: float,
     energy: float,
     instrumentalness: float,
+    key: Optional[Key],
     liveness: float,
     speechiness: float,
     tempo: float,
@@ -38,6 +133,7 @@ class Track(object):
     self.danceability = danceability
     self.energy = energy
     self.instrumentalness = instrumentalness
+    self.key = key
     self.liveness = liveness
     self.speechiness = speechiness
     self.tempo = tempo
@@ -58,6 +154,7 @@ class Track(object):
     energyWeight = 1.0
     genreWeight = 3.0
     instrumentalnessWeight = 1.0
+    keyWeight = 3.0
     livenessWeight = 1.0
     speechinessWeight = 1.0
     tempoWeight = 2.0
@@ -69,6 +166,8 @@ class Track(object):
       self.client.QueryArtist(selfArtistID).ComputeDistance(self.client.QueryArtist(otherArtistID))
       for selfArtistID in self.artistIDs for otherArtistID in other.artistIDs
     )
+    keyDistance = (0.0 if (self.key is not None) and (other.key is not None) and self.key.IsCompatible(other.key) else
+                   1.0)
     tempoDistance = min(abs(self.tempo - other.tempo) / maximumTempoDifference, 1.0)
     distance = math.sqrt(
       acousticnessWeight * (self.acousticness - other.acousticness) ** 2.0 +
@@ -76,6 +175,7 @@ class Track(object):
       energyWeight * (self.energy - other.energy) ** 2.0 +
       genreWeight * genreDistance ** 2.0 +
       instrumentalnessWeight * (self.instrumentalness - other.instrumentalness) ** 2.0 +
+      keyWeight * keyDistance ** 2.0 +
       livenessWeight * (self.liveness - other.liveness) ** 2.0 +
       speechinessWeight * (self.speechiness - other.speechiness) ** 2.0 +
       tempoWeight * tempoDistance ** 2.0 +

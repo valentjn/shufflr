@@ -163,6 +163,7 @@ class Client(object):
             resultAudioFeature["danceability"],
             resultAudioFeature["energy"],
             resultAudioFeature["instrumentalness"],
+            shufflr.track.Key.FromSpotifyNotation(resultAudioFeature["key"], resultAudioFeature["mode"]),
             resultAudioFeature["liveness"],
             resultAudioFeature["speechiness"],
             resultAudioFeature["tempo"],
