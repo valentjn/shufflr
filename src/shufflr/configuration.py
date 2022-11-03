@@ -35,7 +35,7 @@ class Configuration(object):
 
     playlistArgumentGroup = argumentParser.add_argument_group("playlist options")
     playlistArgumentGroup.add_argument(
-      "--inputPlaylists",
+      "-i", "--inputPlaylists",
       nargs="+",
       default=defaultConfiguration.inputPlaylistSpecifiers,
       type=PlaylistSpecifier.ParseString,
@@ -49,7 +49,7 @@ class Configuration(object):
       "Note that Spotify currently does not provide a way to access the playlist of liked songs of other users.",
     )
     playlistArgumentGroup.add_argument(
-      "--inputPlaylistWeights",
+      "-w", "--inputPlaylistWeights",
       type=lambda argument: (None if argument == "*" else float(argument)),
       nargs="+",
       help="Weights for the shuffling of the input playlist. Specify one weight per input playlist. "
