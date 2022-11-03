@@ -9,14 +9,16 @@ import lzma
 import pathlib
 import tempfile
 import types
-from typing import cast, Dict, List, Optional, Sequence, Type
+from typing import Any, cast, Dict, List, Optional, Sequence, Tuple, Type
 
 import requests_cache
 import spotipy
 
 import shufflr.artist
-import shufflr.track
+import shufflr.configuration
 from shufflr.logging import gLogger
+import shufflr.playlist
+import shufflr.track
 
 
 class Client(object):
@@ -106,14 +108,8 @@ class Client(object):
   def QuerySavedTrackIDsOfCurrentUser(self) -> List[str]:
     pageSize = 50
     gLogger.info("Querying saved tracks of current user...")
-    numberOfSavedTracks = self._spotify.current_user_saved_tracks(limit=1)["total"]
-    trackIDs: List[str] = []
-
-    for offset in range(0, numberOfSavedTracks, pageSize):
-      result = self._spotify.current_user_saved_tracks(limit=pageSize, offset=offset)
-      trackIDs.extend(resultTrack["track"]["id"] for resultTrack in result["items"])
-
-    return trackIDs
+    result = self._spotify.current_user_saved_tracks(limit=pageSize)
+    return [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(result)]
 
   def QueryArtist(self, artistID: str) -> shufflr.artist.Artist:
     return self.QueryArtists([artistID])[0]
@@ -176,6 +172,43 @@ class Client(object):
 
     self.QueryArtists(artistIDs)
     return [self._trackCache[trackID] for trackID in trackIDs if trackID not in unplayableTrackIDs]
+
+  def QueryPlaylistIDsAndNamesOfUser(self, userID: str) -> List[Tuple[str, str]]:
+    pageSize = 50
+    gLogger.info("Querying playlists of {}...".format("current user" if userID == "me" else f"user '{userID}'"))
+    result = (self._spotify.current_user_playlists(limit=pageSize) if userID == "me" else
+              self._spotify.user_playlists(userID, limit=pageSize))
+    return [(resultPlaylist["id"], resultPlaylist["name"]) for resultPlaylist in self._QueryAllItems(result)]
+
+  def QueryPlaylist(
+    self,
+    playlistSpecifier: shufflr.configuration.PlaylistSpecifier,
+  ) -> shufflr.playlist.Playlist:
+    playlistIDsAndNames = self.QueryPlaylistIDsAndNamesOfUser(playlistSpecifier.userID)
+    playlistNames = [playlistName for _, playlistName in playlistIDsAndNames]
+
+    try:
+      playlistIndex = playlistNames.index(playlistSpecifier.playlistName)
+    except ValueError:
+      raise ValueError("Could not find playlist with name '{}' for user ID '{}'. Available playlists are: {}".format(
+        playlistSpecifier.playlistName,
+        playlistSpecifier.userID,
+        ", ".join(f"'{playlistName}'" for playlistName in playlistNames),
+      ))
+
+    playlistID, playlistName = playlistIDsAndNames[playlistIndex]
+    result = self._spotify.playlist(playlistID)
+    trackIDs = [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(result["tracks"])]
+    tracks = self.QueryTracks(trackIDs)
+    return shufflr.playlist.Playlist(playlistID, playlistSpecifier.userID, playlistName, tracks)
+
+  def _QueryAllItems(self, resultItems: Any) -> List[Any]:
+    items: List[Any] = []
+
+    while True:
+      items.extend(resultItems["items"])
+      if resultItems["next"] is None: return items
+      resultItems = self._spotify._get(resultItems["next"])
 
   @staticmethod
   def _FormatNoun(number: int, noun: str) -> str:

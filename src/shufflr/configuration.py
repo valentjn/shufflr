@@ -13,7 +13,7 @@ class Configuration(object):
   def __init__(self) -> None:
     self.clientID: Optional[str] = "c322a584f11a4bdcaaac83b0776bd021"
     self.clientSecret: Optional[str] = None
-    self.inputPlaylistSpecifiers: List[str] = ["liked"]
+    self.inputPlaylistSpecifiers: List[PlaylistSpecifier] = [PlaylistSpecifier("me", "liked")]
     self.inputPlaylistWeights: Optional[List[Optional[float]]] = None
     self.redirectURI: Optional[str] = "http://127.0.0.1:11793/"
     self.verbose: int = 0
@@ -38,10 +38,13 @@ class Configuration(object):
       "--inputPlaylists",
       nargs="+",
       default=defaultConfiguration.inputPlaylistSpecifiers,
+      type=PlaylistSpecifier.ParseString,
       dest="inputPlaylistSpecifiers",
       help="Playlist(s) to take the songs to be shuffled from. "
-      "Use the format 'USER_DISPLAY_NAME/PLAYLIST_DISPLAY_NAME' for the playlist of another user or just "
+      "Use the format 'USER_ID/PLAYLIST_DISPLAY_NAME' for the playlist of another user or just "
       "'PLAYLIST_DISPLAY_NAME' for one of your playlists. "
+      "The user ID can be retrieved by extracting it from the link of the user profile, "
+      "which can be obtained via the Spotify app. "
       "To use the playlist of your liked songs, use 'liked' or 'saved' (this is the default). "
       "Note that Spotify currently does not provide a way to access the playlist of liked songs of other users.",
     )
@@ -72,3 +75,17 @@ class Configuration(object):
       if hasattr(arguments, key): setattr(self, key, getattr(arguments, key))
 
     if arguments.quiet: self.verbose = -1
+
+
+class PlaylistSpecifier(object):
+  def __init__(self, userID: str, playlistName: str) -> None:
+    self.userID = userID
+    self.playlistName = playlistName
+
+  @staticmethod
+  def ParseString(string: str) -> "PlaylistSpecifier":
+    if "/" in string:
+      delimiterIndex = string.index("/")
+      return PlaylistSpecifier(string[:delimiterIndex], string[delimiterIndex + 1:])
+    else:
+      return PlaylistSpecifier("me", string)
