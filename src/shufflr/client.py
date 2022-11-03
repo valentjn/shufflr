@@ -107,7 +107,7 @@ class Client(object):
 
   def QuerySavedTrackIDsOfCurrentUser(self) -> List[str]:
     pageSize = 50
-    gLogger.info("Querying saved tracks of current user...")
+    gLogger.info("Querying saved track IDs of current user...")
     result = self._spotify.current_user_saved_tracks(limit=pageSize)
     return [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(result)]
 
@@ -175,22 +175,22 @@ class Client(object):
 
   def QueryPlaylistIDsAndNamesOfUser(self, userID: str) -> List[Tuple[str, str]]:
     pageSize = 50
-    gLogger.info("Querying playlists of {}...".format("current user" if userID == "me" else f"user '{userID}'"))
+    gLogger.info(f"Querying playlist IDs of user '{userID}'...")
     result = (self._spotify.current_user_playlists(limit=pageSize) if userID == "me" else
               self._spotify.user_playlists(userID, limit=pageSize))
     return [(resultPlaylist["id"], resultPlaylist["name"]) for resultPlaylist in self._QueryAllItems(result)]
 
-  def QueryPlaylist(
-    self,
-    playlistSpecifier: shufflr.configuration.PlaylistSpecifier,
-  ) -> shufflr.playlist.Playlist:
+  def QueryPlaylist(self, playlistSpecifier: shufflr.configuration.PlaylistSpecifier) -> shufflr.playlist.Playlist:
+    gLogger.info(
+      f"Querying playlist '{playlistSpecifier.playlistName}' of user '{playlistSpecifier.userID}'..."
+    )
     playlistIDsAndNames = self.QueryPlaylistIDsAndNamesOfUser(playlistSpecifier.userID)
     playlistNames = [playlistName for _, playlistName in playlistIDsAndNames]
 
     try:
       playlistIndex = playlistNames.index(playlistSpecifier.playlistName)
     except ValueError:
-      raise ValueError("Could not find playlist with name '{}' for user ID '{}'. Available playlists are: {}".format(
+      raise ValueError("Could not find playlist '{}' for user '{}'. Available playlists are: {}".format(
         playlistSpecifier.playlistName,
         playlistSpecifier.userID,
         ", ".join(f"'{playlistName}'" for playlistName in playlistNames),
@@ -199,8 +199,7 @@ class Client(object):
     playlistID, playlistName = playlistIDsAndNames[playlistIndex]
     result = self._spotify.playlist(playlistID)
     trackIDs = [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(result["tracks"])]
-    tracks = self.QueryTracks(trackIDs)
-    return shufflr.playlist.Playlist(playlistID, playlistSpecifier.userID, playlistName, tracks)
+    return shufflr.playlist.Playlist(playlistID, playlistSpecifier.userID, playlistName, trackIDs)
 
   def _QueryAllItems(self, resultItems: Any) -> List[Any]:
     items: List[Any] = []

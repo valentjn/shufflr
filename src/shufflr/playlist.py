@@ -5,6 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import random
 from typing import cast, List, Optional, Sequence, Set, TYPE_CHECKING
 
 
@@ -15,11 +16,11 @@ if TYPE_CHECKING:
 
 
 class Playlist(object):
-  def __init__(self, playlistID: str, userID: str, name: str, tracks: Sequence["shufflr.track.Track"]):
+  def __init__(self, playlistID: str, userID: str, name: str, trackIDs: Sequence[str]):
     self.playlistID = playlistID
     self.userID = userID
     self.name = name
-    self.tracks = list(tracks)
+    self.trackIDs = list(trackIDs)
 
 
 def CollectInputTracks(
@@ -35,9 +36,30 @@ def CollectInputTracks(
       trackIDsOfPlaylist = client.QuerySavedTrackIDsOfCurrentUser()
     else:
       playlist = client.QueryPlaylist(playlistSpecifier)
-      trackIDsOfPlaylist = [track.id for track in playlist.tracks]
+      trackIDsOfPlaylist = playlist.trackIDs
 
     trackIDsOfPlaylists.append(trackIDsOfPlaylist)
 
-  trackIDs = [trackID for trackIDOfPlaylist in trackIDsOfPlaylists for trackID in trackIDOfPlaylist]
+  if all(playlistWeight is None for playlistWeight in playlistWeights):
+    trackIDs = [trackID for trackIDOfPlaylist in trackIDsOfPlaylists for trackID in trackIDOfPlaylist]
+  else:
+    songWeightRatios = [len(trackIDsOfPlaylist) / (0.0 if playlistWeight is None else playlistWeight)
+                        for trackIDsOfPlaylist, playlistWeight in zip(trackIDsOfPlaylists, playlistWeights)]
+    criticalPlaylistIndex = min(
+      range(len(songWeightRatios)),
+      key=lambda playlistIndex: songWeightRatios[playlistIndex],
+    )
+    totalWeight = sum(playlistWeight for playlistWeight in playlistWeights if playlistWeight is not None)
+    totalNumberOfSongs = (len(trackIDsOfPlaylists[criticalPlaylistIndex]) /
+                          (cast(float, playlistWeights[criticalPlaylistIndex]) / totalWeight))
+    trackIDs = []
+
+    for trackIDsOfPlaylist, playlistWeight in zip(trackIDsOfPlaylists, playlistWeights):
+      if playlistWeight is None:
+        trackIDs.extend(trackIDsOfPlaylist)
+      else:
+        random.shuffle(trackIDsOfPlaylist)
+        numberOfSongs = round(totalNumberOfSongs * (playlistWeight / totalWeight))
+        trackIDs.extend(trackIDsOfPlaylist[:numberOfSongs])
+
   return set(client.QueryTracks(trackIDs))
