@@ -11,16 +11,43 @@ from typing import List, Optional, Sequence
 
 class Configuration(object):
   def __init__(self) -> None:
+    self.acousticnessWeight = 1.0
     self.clientID = "c322a584f11a4bdcaaac83b0776bd021"
     self.clientSecret: Optional[str] = None
+    self.danceabilityWeight = 1.0
+    self.differentArtistWeight = 5.0
+    self.energyWeight = 1.0
+    self.genreWeight = 3.0
     self.inputPlaylistSpecifiers = [PlaylistSpecifier("me", "liked")]
     self.inputPlaylistWeights: Optional[List[Optional[float]]] = None
+    self.instrumentalnessWeight = 1.0
+    self.keyWeight = 3.0
+    self.livenessWeight = 1.0
+    self.maximumAcousticness: Optional[float] = None
+    self.maximumDanceability: Optional[float] = None
+    self.maximumEnergy: Optional[float] = None
+    self.maximumInstrumentalness: Optional[float] = None
+    self.maximumLiveness: Optional[float] = None
     self.maximumNumberOfSongs: Optional[int] = None
+    self.maximumSpeechiness: Optional[float] = None
+    self.maximumTempo: Optional[float] = None
+    self.maximumValence: Optional[float] = None
+    self.minimumAcousticness: Optional[float] = None
+    self.minimumDanceability: Optional[float] = None
+    self.minimumEnergy: Optional[float] = None
+    self.minimumInstrumentalness: Optional[float] = None
+    self.minimumLiveness: Optional[float] = None
+    self.minimumSpeechiness: Optional[float] = None
+    self.minimumTempo: Optional[float] = None
+    self.minimumValence: Optional[float] = None
     self.outputPlaylistDescription = "Created by Shufflr"
     self.outputPlaylistIsPublic = False
     self.outputPlaylistName: Optional[str] = None
     self.overwriteOutputPlaylist = False
     self.redirectURI = "http://127.0.0.1:11793/"
+    self.speechinessWeight = 1.0
+    self.tempoWeight = 2.0
+    self.valenceWeight = 1.0
     self.verbose = 0
 
   def GetKeys(self) -> List[str]:
@@ -75,6 +102,44 @@ class Configuration(object):
       type=int,
       help="Maximum number of songs in the output playlist. If omitted, then all songs are taken."
     )
+    featureNames = ["acousticness", "danceability", "differentArtist", "energy", "genre", "instrumentalness",
+                    "key", "liveness", "speechiness", "tempo", "valence"]
+    featureDescriptions = [
+      "confidence whether the song is acoustic",
+      "how suitable the song is for dancing based on a combination of musical elements including tempo, "
+      "rhythm stability, beat strength, and overall regularity",
+      "whether the artists of the song are different from the previous song",
+      "perceptual measure of intensity and activity; typically, energetic tracks feel fast, loud, and noisy",
+      "whether the genre of the song is similar to the previous song",
+      "whether a track contains no vocals; 'ooh' and 'aah' sounds are treated as instrumental in this context",
+      "whether the key of the song is harmonically compatible to the previous song",
+      "confidence whether an audience is present in the recording",
+      "presence of spoken words in the song; values above 66 are probably made entirely of spoken words",
+      "tempo of the song in beats per minute",
+      "musical positiveness conveyed by the song",
+    ]
+
+    for featureName, featureDescription in zip(featureNames, featureDescriptions):
+      weightArgumentName = f"{featureName}Weight"
+      songSelectionArgumentGroup.add_argument(
+        f"--{weightArgumentName}",
+        type=float,
+        default=getattr(defaultConfiguration, weightArgumentName),
+        help=f"Weight of song feature '{featureName}' ({featureDescription}).",
+      )
+
+      if featureName not in ["differentArtist", "genre", "key"]:
+        capitalFeatureName = featureName[0].upper() + featureName[1:]
+        songSelectionArgumentGroup.add_argument(
+          f"--minimum{capitalFeatureName}",
+          type=float,
+          help=f"Minimum permitted value of song feature '{featureName}' ({featureDescription}) between 0 and 100.",
+        )
+        songSelectionArgumentGroup.add_argument(
+          f"--maximum{capitalFeatureName}",
+          type=float,
+          help=f"Maximum permitted value of song feature '{featureName}' ({featureDescription}) between 0 and 100.",
+        )
 
     outputPlaylistArgumentGroup = argumentParser.add_argument_group("output playlist options")
     outputPlaylistArgumentGroup.add_argument(

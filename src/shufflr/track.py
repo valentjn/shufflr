@@ -13,6 +13,7 @@ from typing import List, Iterable, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
   import shufflr.artist
   import shufflr.client
+  import shufflr.configuration
 
 
 class Key(enum.Enum):
@@ -148,20 +149,8 @@ class Track(object):
   def GetArtists(self) -> List["shufflr.artist.Artist"]:
     return self.client.QueryArtists(self.artistIDs)
 
-  def ComputeDistance(self, other: "Track") -> float:
-    acousticnessWeight = 1.0
-    danceabilityWeight = 1.0
-    differentArtistWeight = 5.0
-    energyWeight = 1.0
-    genreWeight = 3.0
-    instrumentalnessWeight = 1.0
-    keyWeight = 3.0
-    livenessWeight = 1.0
-    speechinessWeight = 1.0
-    tempoWeight = 2.0
-    valenceWeight = 1.0
+  def ComputeDistance(self, other: "Track", configuration: "shufflr.configuration.Configuration") -> float:
     maximumTempoDifference = 10.0
-
     if self == other: return 0.0
     differentArtistDistance = 1.0 if len(set(self.artistIDs) & set(other.artistIDs)) > 0 else 0.0
     genreDistance = statistics.mean(
@@ -172,16 +161,16 @@ class Track(object):
                    1.0)
     tempoDistance = min(abs(self.tempo - other.tempo) / maximumTempoDifference, 1.0)
     distance = math.sqrt(
-      acousticnessWeight * (self.acousticness - other.acousticness) ** 2.0 +
-      danceabilityWeight * (self.danceability - other.danceability) ** 2.0 +
-      differentArtistWeight * differentArtistDistance ** 2.0 +
-      energyWeight * (self.energy - other.energy) ** 2.0 +
-      genreWeight * genreDistance ** 2.0 +
-      instrumentalnessWeight * (self.instrumentalness - other.instrumentalness) ** 2.0 +
-      keyWeight * keyDistance ** 2.0 +
-      livenessWeight * (self.liveness - other.liveness) ** 2.0 +
-      speechinessWeight * (self.speechiness - other.speechiness) ** 2.0 +
-      tempoWeight * tempoDistance ** 2.0 +
-      valenceWeight * (self.valence - other.valence) ** 2.0
+      configuration.acousticnessWeight * (self.acousticness - other.acousticness) ** 2.0 +
+      configuration.danceabilityWeight * (self.danceability - other.danceability) ** 2.0 +
+      configuration.differentArtistWeight * differentArtistDistance ** 2.0 +
+      configuration.energyWeight * (self.energy - other.energy) ** 2.0 +
+      configuration.genreWeight * genreDistance ** 2.0 +
+      configuration.instrumentalnessWeight * (self.instrumentalness - other.instrumentalness) ** 2.0 +
+      configuration.keyWeight * keyDistance ** 2.0 +
+      configuration.livenessWeight * (self.liveness - other.liveness) ** 2.0 +
+      configuration.speechinessWeight * (self.speechiness - other.speechiness) ** 2.0 +
+      configuration.tempoWeight * tempoDistance ** 2.0 +
+      configuration.valenceWeight * (self.valence - other.valence) ** 2.0
     )
     return distance

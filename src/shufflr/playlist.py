@@ -65,6 +65,28 @@ def CollectInputTracks(
   return set(client.QueryTracks(trackIDs))
 
 
+def SelectInputTracks(
+  tracks: Set["shufflr.track.Track"],
+  configuration: "shufflr.configuration.Configuration",
+) -> Set["shufflr.track.Track"]:
+  featureNames = ["acousticness", "danceability", "energy", "instrumentalness",
+                  "liveness", "speechiness", "tempo", "valence"]
+  subsetTracks = set(tracks)
+
+  for featureName in featureNames:
+    capitalFeatureName = featureName[0].upper() + featureName[1:]
+    minimumValue = getattr(configuration, f"minimum{capitalFeatureName}")
+    maximumValue = getattr(configuration, f"maximum{capitalFeatureName}")
+
+    if minimumValue is not None:
+      subsetTracks = {track for track in subsetTracks if getattr(track, featureName) >= minimumValue / 100.0}
+
+    if maximumValue is not None:
+      subsetTracks = {track for track in subsetTracks if getattr(track, featureName) <= maximumValue / 100.0}
+
+  return subsetTracks
+
+
 def SavePlaylist(
   client: "shufflr.client.Client",
   playlistName: str,

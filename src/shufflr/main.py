@@ -33,11 +33,8 @@ def Main() -> None:
       configuration.inputPlaylistSpecifiers,
       configuration.inputPlaylistWeights,
     )
-    shuffledTracks = shufflr.shuffling.ShuffleTracks(
-      tracks,
-      maximumNumberOfTracks=configuration.maximumNumberOfSongs,
-      verbose=configuration.verbose,
-    )
+    tracks = shufflr.playlist.SelectInputTracks(tracks, configuration)
+    shuffledTracks = shufflr.shuffling.ShuffleTracks(tracks, configuration)
 
     if configuration.outputPlaylistName is not None:
       shufflr.playlist.SavePlaylist(

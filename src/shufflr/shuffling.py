@@ -17,21 +17,23 @@ import ortools.constraint_solver.pywrapcp as pywrapcp
 from shufflr.logging import gLogger
 
 if TYPE_CHECKING:
+  import shufflr.configuration
   import shufflr.track
 
 
 def ShuffleTracks(
   tracks: Set["shufflr.track.Track"],
-  maximumNumberOfTracks: Optional[int] = None,
-  verbose: int = 0,
+  configuration: "shufflr.configuration.Configuration",
 ) -> List["shufflr.track.Track"]:
   trackList = list(tracks)
-  distanceMatrix = ComputeDistanceMatrix(trackList)
-  shuffledTrackIndices = SolveTravelingSalespersonProblem(distanceMatrix, verbose=verbose)
+  distanceMatrix = ComputeDistanceMatrix(trackList, configuration)
+  shuffledTrackIndices = SolveTravelingSalespersonProblem(distanceMatrix, verbose=configuration.verbose)
   shuffledTrackList = [trackList[trackIndex] for trackIndex in shuffledTrackIndices]
-  if maximumNumberOfTracks is not None: shuffledTrackList = shuffledTrackList[:maximumNumberOfTracks]
 
-  if verbose >= 0:
+  if configuration.maximumNumberOfSongs is not None:
+    shuffledTrackList = shuffledTrackList[:configuration.maximumNumberOfSongs]
+
+  if configuration.verbose >= 0:
     distances = [
       distanceMatrix[previousTrackIndex, currentTrackIndex]
       for previousTrackIndex, currentTrackIndex in zip(shuffledTrackIndices[:-1], shuffledTrackIndices[1:])
@@ -41,14 +43,19 @@ def ShuffleTracks(
   return shuffledTrackList
 
 
-def ComputeDistanceMatrix(tracks: Sequence["shufflr.track.Track"]) -> npt.NDArray[np.double]:
+def ComputeDistanceMatrix(
+  tracks: Sequence["shufflr.track.Track"],
+  configuration: "shufflr.configuration.Configuration",
+) -> npt.NDArray[np.double]:
   gLogger.info("Computing distance matrix...")
   distanceMatrix = np.zeros((len(tracks), len(tracks)))
 
   for trackIndex1, track1 in enumerate(tracks):
     for trackIndex2, track2 in enumerate(tracks):
-      distanceMatrix[trackIndex1, trackIndex2] = (track1.ComputeDistance(track2) if trackIndex1 <= trackIndex2 else
-                                                  distanceMatrix[trackIndex2, trackIndex1])
+      distanceMatrix[trackIndex1, trackIndex2] = (
+        track1.ComputeDistance(track2, configuration) if trackIndex1 <= trackIndex2 else
+        distanceMatrix[trackIndex2, trackIndex1]
+      )
 
   return distanceMatrix
 
