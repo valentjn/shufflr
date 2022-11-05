@@ -33,9 +33,10 @@ class Configuration(object):
     outputArgumentGroup.add_argument("-q", "--quiet", action="store_true", help="Only print warnings and errors.")
     outputArgumentGroup.add_argument("-v", "--verbose", action="count", default=0, help="Print log messages.")
 
-    playlistArgumentGroup = argumentParser.add_argument_group("playlist options")
-    playlistArgumentGroup.add_argument(
-      "-i", "--inputPlaylists",
+    inputPlaylistArgumentGroup = argumentParser.add_argument_group("input playlist options")
+    inputPlaylistArgumentGroup.add_argument(
+      "-i",
+      "--inputPlaylists",
       nargs="+",
       default=defaultConfiguration.inputPlaylistSpecifiers,
       type=PlaylistSpecifier.ParseString,
@@ -48,14 +49,15 @@ class Configuration(object):
       "To use the playlist of your liked songs, use 'liked' or 'saved' (this is the default). "
       "Note that Spotify currently does not provide a way to access the playlist of liked songs of other users.",
     )
-    playlistArgumentGroup.add_argument(
-      "-w", "--inputPlaylistWeights",
+    inputPlaylistArgumentGroup.add_argument(
+      "-w",
+      "--inputPlaylistWeights",
       type=lambda argument: (None if argument == "*" else float(argument)),
       nargs="+",
       help="Weights for the shuffling of the input playlist. Specify one weight per input playlist. "
-      "If you use 1 for all playlists, then the target playlist will contain equally many songs from each "
+      "If you use 1 for all playlists, then the target playlist contains equally many songs from each "
       "input playlist. "
-      "If you change the value for a playlist to 2, then twice as many songs will be taken from that playlist "
+      "If you change the value for a playlist to 2, then twice as many songs are taken from that playlist "
       "compared to the other playlists. "
       "Use the special value '*' to include all songs of a playlist. "
       "This playlist is then discarded for the computation of the number of songs for the other playlists. "
