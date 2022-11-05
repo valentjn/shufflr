@@ -48,6 +48,7 @@ class Configuration(object):
     self.redirectURI = "http://127.0.0.1:11793/"
     self.speechinessWeight = 1.0
     self.tempoWeight = 2.0
+    self.tspSolutionDuration: float = 10.0
     self.valenceWeight = 1.0
     self.verbose = 0
 
@@ -103,6 +104,14 @@ class Configuration(object):
       type=int,
       help="Maximum number of songs in the output playlist. If omitted, then all songs are taken."
     )
+    songSelectionArgumentGroup.add_argument(
+      "--tspSolutionDuration",
+      type=float,
+      default=defaultConfiguration.tspSolutionDuration,
+      help="Number of seconds taken to solve the traveling salesperson problem heuristically. "
+      "For technical reasons, the duration is rounded up to the next integer.",
+    )
+
     featureNames = ["acousticness", "danceability", "differentArtist", "energy", "genre", "instrumentalness",
                     "key", "liveness", "speechiness", "tempo", "valence"]
     featureDescriptions = [

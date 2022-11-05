@@ -6,6 +6,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import functools
+import math
 import shutil
 from typing import cast, List, Optional, Sequence, Set, TYPE_CHECKING
 
@@ -27,7 +28,11 @@ def ShuffleTracks(
 ) -> List["shufflr.track.Track"]:
   trackList = list(tracks)
   distanceMatrix = ComputeDistanceMatrix(trackList, configuration)
-  shuffledTrackIndices = SolveTravelingSalespersonProblem(distanceMatrix, verbose=configuration.verbose)
+  shuffledTrackIndices = SolveTravelingSalespersonProblem(
+    distanceMatrix,
+    configuration.tspSolutionDuration,
+    verbose=configuration.verbose,
+  )
   shuffledTrackList = [trackList[trackIndex] for trackIndex in shuffledTrackIndices]
 
   if configuration.maximumNumberOfSongs is not None:
@@ -60,9 +65,12 @@ def ComputeDistanceMatrix(
   return distanceMatrix
 
 
-def SolveTravelingSalespersonProblem(distanceMatrix: npt.NDArray[np.float_], verbose: int = 0) -> List[int]:
+def SolveTravelingSalespersonProblem(
+  distanceMatrix: npt.NDArray[np.float_],
+  tspSolutionDuration: float,
+  verbose: int = 0,
+) -> List[int]:
   integerDistanceScalingFactor = 1000
-  timeLimitInSeconds = 10
   gLogger.info("Solving TSP...")
 
   numberOfLocations = distanceMatrix.shape[0]
@@ -84,7 +92,7 @@ def SolveTravelingSalespersonProblem(distanceMatrix: npt.NDArray[np.float_], ver
   routingModel.SetArcCostEvaluatorOfAllVehicles(transitCallbackIndex)
   searchParameters = pywrapcp.DefaultRoutingSearchParameters()
   searchParameters.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-  searchParameters.time_limit.seconds = timeLimitInSeconds
+  searchParameters.time_limit.seconds = math.ceil(tspSolutionDuration)
   searchParameters.log_search = verbose >= 1
   solution = routingModel.SolveWithParameters(searchParameters)
 
