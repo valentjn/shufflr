@@ -27,7 +27,12 @@ def Main() -> None:
 
   if configuration.verbose >= 1: http.client.HTTPConnection.debuglevel = 2
 
-  with shufflr.client.Client(configuration.clientID, configuration.clientSecret, configuration.redirectURI) as client:
+  with shufflr.client.Client(
+    configuration.clientID,
+    configuration.clientSecret,
+    configuration.redirectURI,
+    useRequestCache=not configuration.disableRequestCache,
+  ) as client:
     tracks = shufflr.playlist.CollectInputTracks(
       client,
       configuration.inputPlaylistSpecifiers,

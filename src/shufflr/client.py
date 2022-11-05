@@ -22,10 +22,17 @@ import shufflr.track
 
 
 class Client(object):
-  def __init__(self, clientID: Optional[str], clientSecret: Optional[str], redirectURI: Optional[str]) -> None:
+  def __init__(
+    self,
+    clientID: Optional[str],
+    clientSecret: Optional[str],
+    redirectURI: Optional[str],
+    useRequestCache: bool = True,
+  ) -> None:
     self.clientID = clientID
     self.clientSecret = clientSecret
     self.redirectURI = redirectURI
+    self.useRequestCache = useRequestCache
     self._artistCache: Dict[str, shufflr.artist.Artist] = {}
     self._requestsCachePath = pathlib.Path(tempfile.gettempdir()) / "shufflr-requests-cache.sqlite"
     self._compressedRequestsCachePath = self._requestsCachePath.parent / f"{self._requestsCachePath.name}.xz"
@@ -43,6 +50,8 @@ class Client(object):
     exceptionValue: Optional[BaseException],
     traceback: Optional[types.TracebackType]
   ) -> Optional[bool]:
+    if not self.useRequestCache: return None
+
     if (exceptionType is None) or (exceptionType is KeyboardInterrupt):
       self.CompressRequestsCache()
     else:
@@ -53,10 +62,12 @@ class Client(object):
     return None
 
   def _CloseRequestsCache(self) -> None:
+    if not self.useRequestCache: return
     cast(requests_cache.backends.sqlite.SQLiteDict, self._sessionCache.redirects).close()  # type: ignore
     self._sessionCache.responses.close()  # type: ignore
 
   def CompressRequestsCache(self) -> None:
+    if not self.useRequestCache: return
     self._CloseRequestsCache()
 
     if self._requestsCachePath.is_file():
@@ -69,6 +80,8 @@ class Client(object):
       self._requestsCachePath.unlink()
 
   def DecompressRequestsCache(self) -> None:
+    if not self.useRequestCache: return
+
     if self._compressedRequestsCachePath.is_file():
       gLogger.info(f"Decompressing requests cache {str(self._compressedRequestsCachePath)!r} to "
                    f"{str(self._requestsCachePath)!r}...")
@@ -79,13 +92,17 @@ class Client(object):
       self._compressedRequestsCachePath.unlink()
 
   def _CreateSpotify(self) -> None:
-    cachedSession = requests_cache.session.CachedSession(
-      str(self._requestsCachePath),
-      backend="sqlite",
-      cache_control=True,
-    )
-    self._sessionCache = cast(requests_cache.backends.sqlite.SQLiteCache, cachedSession.cache)
-    cachedSession.remove_expired_responses()
+    if self.useRequestCache:
+      requestsSession = requests_cache.session.CachedSession(
+        str(self._requestsCachePath),
+        backend="sqlite",
+        cache_control=True,
+      )
+      self._sessionCache = cast(requests_cache.backends.sqlite.SQLiteCache, requestsSession.cache)
+      requestsSession.remove_expired_responses()
+    else:
+      requestsSession = None
+
     self._spotify = spotipy.Spotify(
       auth_manager=spotipy.oauth2.SpotifyOAuth(
         client_id=self.clientID,
@@ -98,7 +115,7 @@ class Client(object):
           "user-library-read",
         ],
       ),
-      requests_session=cachedSession,
+      requests_session=requestsSession,
     )
 
   def QueryCurrentUserID(self) -> str:

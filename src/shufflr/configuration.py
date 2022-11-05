@@ -16,6 +16,7 @@ class Configuration(object):
     self.clientSecret: Optional[str] = None
     self.danceabilityWeight = 1.0
     self.differentArtistWeight = 5.0
+    self.disableRequestCache = False
     self.energyWeight = 1.0
     self.genreWeight = 3.0
     self.inputPlaylistSpecifiers = [PlaylistSpecifier("me", "liked")]
@@ -169,12 +170,23 @@ class Configuration(object):
       "Otherwise, an exception is thrown to prevent data loss.",
     )
 
-    authentificationArgumentGroup = argumentParser.add_argument_group("authentification options")
-    authentificationArgumentGroup.add_argument("--clientID", default=defaultConfiguration.clientID,
-                                               help="Client ID - unique identifier of the app.")
-    authentificationArgumentGroup.add_argument("--clientSecret", help="Client secret to authenticate the app.")
-    authentificationArgumentGroup.add_argument("--redirectURI", default=defaultConfiguration.redirectURI,
-                                               help="URI opened by Spotify after successful logins.")
+    apiArgumentGroup = argumentParser.add_argument_group("API options")
+    apiArgumentGroup.add_argument(
+      "--clientID",
+      default=defaultConfiguration.clientID,
+      help="Client ID - unique identifier of the app.",
+    )
+    apiArgumentGroup.add_argument("--clientSecret", help="Client secret to authenticate the app.")
+    apiArgumentGroup.add_argument(
+      "--disableRequestCache",
+      action="store_true",
+      help="Prevent storing requests in a file-based cache and re-using responses.",
+    )
+    apiArgumentGroup.add_argument(
+      "--redirectURI",
+      default=defaultConfiguration.redirectURI,
+      help="URI opened by Spotify after successful logins.",
+    )
 
     arguments = argumentParser.parse_args(argv[1:])
 
