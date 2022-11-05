@@ -8,7 +8,6 @@
 import random
 from typing import cast, List, Optional, Sequence, Set, TYPE_CHECKING
 
-
 if TYPE_CHECKING:
   import shufflr.client
   import shufflr.configuration
