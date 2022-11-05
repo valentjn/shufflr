@@ -151,6 +151,7 @@ class Track(object):
   def ComputeDistance(self, other: "Track") -> float:
     acousticnessWeight = 1.0
     danceabilityWeight = 1.0
+    differentArtistWeight = 5.0
     energyWeight = 1.0
     genreWeight = 3.0
     instrumentalnessWeight = 1.0
@@ -162,6 +163,7 @@ class Track(object):
     maximumTempoDifference = 10.0
 
     if self == other: return 0.0
+    differentArtistDistance = 1.0 if len(set(self.artistIDs) & set(other.artistIDs)) > 0 else 0.0
     genreDistance = statistics.mean(
       self.client.QueryArtist(selfArtistID).ComputeDistance(self.client.QueryArtist(otherArtistID))
       for selfArtistID in self.artistIDs for otherArtistID in other.artistIDs
@@ -172,6 +174,7 @@ class Track(object):
     distance = math.sqrt(
       acousticnessWeight * (self.acousticness - other.acousticness) ** 2.0 +
       danceabilityWeight * (self.danceability - other.danceability) ** 2.0 +
+      differentArtistWeight * differentArtistDistance ** 2.0 +
       energyWeight * (self.energy - other.energy) ** 2.0 +
       genreWeight * genreDistance ** 2.0 +
       instrumentalnessWeight * (self.instrumentalness - other.instrumentalness) ** 2.0 +
