@@ -34,3 +34,13 @@ def Main() -> None:
       configuration.inputPlaylistWeights,
     )
     shuffledTracks = shufflr.shuffling.ShuffleTracks(tracks, verbose=configuration.verbose)
+
+    if configuration.outputPlaylistName is not None:
+      shufflr.playlist.SavePlaylist(
+        client,
+        configuration.outputPlaylistName,
+        [track.id for track in shuffledTracks],
+        playlistDescription=configuration.outputPlaylistDescription,
+        isPublic=configuration.outputPlaylistIsPublic,
+        overwrite=configuration.overwriteOutputPlaylist,
+      )

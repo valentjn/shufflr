@@ -63,3 +63,32 @@ def CollectInputTracks(
         trackIDs.extend(trackIDsOfPlaylist[:numberOfSongs])
 
   return set(client.QueryTracks(trackIDs))
+
+
+def SavePlaylist(
+  client: "shufflr.client.Client",
+  playlistName: str,
+  trackIDs: Sequence[str],
+  playlistDescription: str = "",
+  isPublic: bool = False,
+  overwrite: bool = False,
+) -> None:
+  playlistIDsAndNames = client.QueryPlaylistIDsAndNamesOfCurrentUser()
+  playlistNames = [playlistName for _, playlistName in playlistIDsAndNames]
+
+  try:
+    playlistIndex = playlistNames.index(playlistName)
+  except ValueError:
+    playlistIndex = None
+
+  if playlistIndex is None:
+    playlistID = client.CreatePlaylist(playlistName, playlistDescription=playlistDescription, isPublic=isPublic)
+  elif not overwrite:
+    raise RuntimeError(
+      f"Playlist '{playlistName}' already exists for current user and --overwriteOutputPlaylist not specified."
+    )
+  else:
+    playlistID = playlistIDsAndNames[playlistIndex][0]
+    client.ClearPlaylist(playlistID)
+
+  client.AddTracksToPlaylist(playlistID, trackIDs)

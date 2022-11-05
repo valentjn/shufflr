@@ -15,6 +15,10 @@ class Configuration(object):
     self.clientSecret: Optional[str] = None
     self.inputPlaylistSpecifiers: List[PlaylistSpecifier] = [PlaylistSpecifier("me", "liked")]
     self.inputPlaylistWeights: Optional[List[Optional[float]]] = None
+    self.outputPlaylistDescription = "Created by Shufflr"
+    self.outputPlaylistIsPublic = False
+    self.outputPlaylistName: Optional[str] = None
+    self.overwriteOutputPlaylist = False
     self.redirectURI: Optional[str] = "http://127.0.0.1:11793/"
     self.verbose: int = 0
 
@@ -62,6 +66,34 @@ class Configuration(object):
       "Use the special value '*' to include all songs of a playlist. "
       "This playlist is then discarded for the computation of the number of songs for the other playlists. "
       "The default is to use '*' for all input playlists.",
+    )
+
+    outputPlaylistArgumentGroup = argumentParser.add_argument_group("output playlist options")
+    outputPlaylistArgumentGroup.add_argument(
+      "-o",
+      "--outputPlaylist",
+      dest="outputPlaylistName",
+      help="If specified, the list of shuffled songs is saved as a playlist with this name under the current user "
+      "(--overwriteOutputPlaylist has to be specified if the playlist already exists). "
+      "Otherwise, the playlist is just printed (except if --quiet is given).",
+    )
+    outputPlaylistArgumentGroup.add_argument(
+      "--outputPlaylistDescription",
+      default=defaultConfiguration.outputPlaylistDescription,
+      help="The description of the output playlist created by --outputPlaylist.",
+    )
+    outputPlaylistArgumentGroup.add_argument(
+      "--outputPlaylistIsPublic",
+      action="store_true",
+      help="If specified, the output playlist created with --outputPlaylist is public. "
+      "Otherwise, by default, it is private.",
+    )
+    outputPlaylistArgumentGroup.add_argument(
+      "-f",
+      "--overwriteOutputPlaylist",
+      action="store_true",
+      help="If the output playlist specified by --outputPlaylist already exists, overwrite it. "
+      "Otherwise, an exception is thrown to prevent data loss.",
     )
 
     authentificationArgumentGroup = argumentParser.add_argument_group("authentification options")

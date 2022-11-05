@@ -210,6 +210,29 @@ class Client(object):
     trackIDs = [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(result["tracks"])]
     return shufflr.playlist.Playlist(playlistID, result["owner"]["id"], result["name"], trackIDs)
 
+  def CreatePlaylist(self, playlistName: str, playlistDescription: str = "", isPublic: bool = False) -> str:
+    gLogger.info(f"Creating playlist '{playlistName}'...")
+    userID = self.QueryCurrentUserID()
+    result = self._spotify.user_playlist_create(userID, playlistName, public=isPublic, description=playlistDescription)
+    return cast(str, result["id"])
+
+  def ClearPlaylist(self, playlistID: str) -> None:
+    pageSize = 100
+    gLogger.info(f"Clearing playlist ID '{playlistID}'...")
+    playlist = self.QueryPlaylist(playlistID)
+
+    for offset in range(0, len(playlist.trackIDs), pageSize):
+      pageTrackIDs = playlist.trackIDs[offset : offset + pageSize]
+      self._spotify.playlist_remove_all_occurrences_of_items(playlistID, pageTrackIDs)
+
+  def AddTracksToPlaylist(self, playlistID: str, trackIDs: Sequence[str]) -> None:
+    pageSize = 100
+    gLogger.info("Adding {} to playlist ID '{}'...".format(Client._FormatNoun(len(trackIDs), "track"), playlistID))
+
+    for offset in range(0, len(trackIDs), pageSize):
+      pageTrackIDs = trackIDs[offset : offset + pageSize]
+      self._spotify.playlist_add_items(playlistID, pageTrackIDs)
+
   def _QueryAllItems(self, resultItems: Any) -> List[Any]:
     items: List[Any] = []
 
