@@ -157,15 +157,28 @@ class Track(object):
   ) -> float:
     maximumTempoDifference = 10.0
     if self == other: return 0.0
-    differentArtistDistance = 1.0 if len(set(self.artistIDs) & set(other.artistIDs)) > 0 else 0.0
-    genreDistance = statistics.mean(
-      self.client.QueryArtist(loginUserID, selfArtistID).ComputeDistance(
-        self.client.QueryArtist(loginUserID, otherArtistID)
+
+    if configuration.differentArtistWeight > 0.0:
+      differentArtistDistance = 1.0 if len(set(self.artistIDs) & set(other.artistIDs)) > 0 else 0.0
+    else:
+      differentArtistDistance = 0.0
+
+    if configuration.genreWeight > 0.0:
+      genreDistance = statistics.mean(
+        self.client.QueryArtist(loginUserID, selfArtistID).ComputeDistance(
+          self.client.QueryArtist(loginUserID, otherArtistID)
+        )
+        for selfArtistID in self.artistIDs for otherArtistID in other.artistIDs
       )
-      for selfArtistID in self.artistIDs for otherArtistID in other.artistIDs
-    )
-    keyDistance = (0.0 if (self.key is not None) and (other.key is not None) and self.key.IsCompatible(other.key) else
-                   1.0)
+    else:
+      genreDistance = 0.0
+
+    if configuration.keyWeight > 0.0:
+      keyDistance = (0.0 if (self.key is not None) and (other.key is not None) and self.key.IsCompatible(other.key) else
+                     1.0)
+    else:
+      keyDistance = 0.0
+
     tempoDistance = min(abs(self.tempo - other.tempo) / maximumTempoDifference, 1.0)
     distance = math.sqrt(
       configuration.acousticnessWeight * (self.acousticness - other.acousticness) ** 2.0 +
