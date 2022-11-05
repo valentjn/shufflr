@@ -11,8 +11,8 @@ import statistics
 from typing import List, Iterable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-  import shufflr.artist as artist
-  import shufflr.client as client
+  import shufflr.artist
+  import shufflr.client
 
 
 class Key(enum.Enum):
@@ -114,7 +114,7 @@ class Track(object):
     id_: str,
     name: str,
     artistIDs: Iterable[str],
-    client: "client.Client",
+    client: "shufflr.client.Client",
     acousticness: float,
     danceability: float,
     energy: float,
@@ -145,7 +145,7 @@ class Track(object):
   def __hash__(self) -> int:
     return hash(self.id)
 
-  def GetArtists(self) -> List["artist.Artist"]:
+  def GetArtists(self) -> List["shufflr.artist.Artist"]:
     return self.client.QueryArtists(self.artistIDs)
 
   def ComputeDistance(self, other: "Track") -> float:
