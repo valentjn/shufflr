@@ -11,17 +11,17 @@ from typing import List, Optional, Sequence
 
 class Configuration(object):
   def __init__(self) -> None:
-    self.clientID: Optional[str] = "c322a584f11a4bdcaaac83b0776bd021"
+    self.clientID = "c322a584f11a4bdcaaac83b0776bd021"
     self.clientSecret: Optional[str] = None
-    self.inputPlaylistSpecifiers: List[PlaylistSpecifier] = [PlaylistSpecifier("me", "liked")]
+    self.inputPlaylistSpecifiers = [PlaylistSpecifier("me", "liked")]
     self.inputPlaylistWeights: Optional[List[Optional[float]]] = None
     self.maximumNumberOfSongs: Optional[int] = None
     self.outputPlaylistDescription = "Created by Shufflr"
     self.outputPlaylistIsPublic = False
     self.outputPlaylistName: Optional[str] = None
     self.overwriteOutputPlaylist = False
-    self.redirectURI: Optional[str] = "http://127.0.0.1:11793/"
-    self.verbose: int = 0
+    self.redirectURI = "http://127.0.0.1:11793/"
+    self.verbose = 0
 
   def GetKeys(self) -> List[str]:
     return sorted(settingKey for settingKey in vars(self) if not settingKey.startswith("_"))
