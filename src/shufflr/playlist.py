@@ -31,10 +31,14 @@ def CollectInputTracks(
   trackIDsOfPlaylists = []
 
   for playlistSpecifier in playlistSpecifiers:
-    if (playlistSpecifier.userID == "me") and (playlistSpecifier.playlistName in ["liked", "saved"]):
-      trackIDsOfPlaylist = client.QuerySavedTrackIDsOfCurrentUser()
+    if playlistSpecifier.playlistName in ["liked", "saved"]:
+      trackIDsOfPlaylist = client.QuerySavedTrackIDsOfCurrentUser(playlistSpecifier.playlistOwnerID)
     else:
-      playlist = client.QueryPlaylistWithSpecifier(playlistSpecifier)
+      playlist = client.QueryPlaylistWithName(
+        playlistSpecifier.playlistOwnerID,
+        playlistSpecifier.playlistOwnerID,
+        playlistSpecifier.playlistName,
+      )
       trackIDsOfPlaylist = playlist.trackIDs
 
     trackIDsOfPlaylists.append(trackIDsOfPlaylist)
@@ -61,7 +65,7 @@ def CollectInputTracks(
         numberOfSongs = round(totalNumberOfSongs * (playlistWeight / totalWeight))
         trackIDs.extend(trackIDsOfPlaylist[:numberOfSongs])
 
-  return set(client.QueryTracks(trackIDs))
+  return set(client.QueryTracks(playlistSpecifiers[0].playlistOwnerID, trackIDs))
 
 
 def SelectInputTracks(
@@ -88,28 +92,37 @@ def SelectInputTracks(
 
 def SavePlaylist(
   client: "shufflr.client.Client",
-  playlistName: str,
+  playlistSpecifier: "shufflr.configuration.PlaylistSpecifier",
   trackIDs: Sequence[str],
   playlistDescription: str = "",
   isPublic: bool = False,
   overwrite: bool = False,
 ) -> None:
-  playlistIDsAndNames = client.QueryPlaylistIDsAndNamesOfCurrentUser()
+  playlistIDsAndNames = client.QueryPlaylistIDsAndNamesOfUser(
+    playlistSpecifier.playlistOwnerID,
+    playlistSpecifier.playlistOwnerID,
+  )
   playlistNames = [playlistName for _, playlistName in playlistIDsAndNames]
 
   try:
-    playlistIndex = playlistNames.index(playlistName)
+    playlistIndex = playlistNames.index(playlistSpecifier.playlistName)
   except ValueError:
     playlistIndex = None
 
   if playlistIndex is None:
-    playlistID = client.CreatePlaylist(playlistName, playlistDescription=playlistDescription, isPublic=isPublic)
+    playlistID = client.CreatePlaylist(
+      playlistSpecifier.playlistOwnerID,
+      playlistSpecifier.playlistName,
+      playlistDescription=playlistDescription,
+      isPublic=isPublic,
+    )
   elif not overwrite:
     raise RuntimeError(
-      f"Playlist '{playlistName}' already exists for current user and --overwriteOutputPlaylist not specified."
+      f"Playlist '{playlistSpecifier.playlistName}' already exists for user '{playlistSpecifier.playlistOwnerID}' and "
+      "--overwriteOutputPlaylist not specified."
     )
   else:
     playlistID = playlistIDsAndNames[playlistIndex][0]
-    client.ClearPlaylist(playlistID)
+    client.ClearPlaylist(playlistSpecifier.playlistOwnerID, playlistID)
 
-  client.AddTracksToPlaylist(playlistID, trackIDs)
+  client.AddTracksToPlaylist(playlistSpecifier.playlistOwnerID, playlistID, trackIDs)

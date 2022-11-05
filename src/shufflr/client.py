@@ -5,9 +5,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import http.server
 import lzma
 import pathlib
-import tempfile
+import re
+import threading
 import types
 from typing import Any, cast, Dict, List, Optional, Sequence, Tuple, Type
 
@@ -15,7 +17,6 @@ import requests_cache
 import spotipy
 
 import shufflr.artist
-import shufflr.configuration
 from shufflr.logging import gLogger
 import shufflr.playlist
 import shufflr.track
@@ -24,22 +25,25 @@ import shufflr.track
 class Client(object):
   def __init__(
     self,
-    clientID: Optional[str],
-    clientSecret: Optional[str],
-    redirectURI: Optional[str],
+    clientID: Optional[str] = None,
+    clientSecret: Optional[str] = None,
+    redirectURI: Optional[str] = None,
     useRequestCache: bool = True,
   ) -> None:
     self.clientID = clientID
     self.clientSecret = clientSecret
     self.redirectURI = redirectURI
     self.useRequestCache = useRequestCache
+    self._apiClientCache: Dict[str, spotipy.Spotify] = {}
     self._artistCache: Dict[str, shufflr.artist.Artist] = {}
-    self._requestsCachePath = pathlib.Path(tempfile.gettempdir()) / "shufflr-requests-cache.sqlite"
+    self._authenticationHttpServer: Optional[http.server.HTTPServer] = None
+    self._authenticationHttpServerIsRunning = False
+    self._requestsCachePath = pathlib.Path(".shufflr-requests-cache.sqlite")
     self._compressedRequestsCachePath = self._requestsCachePath.parent / f"{self._requestsCachePath.name}.xz"
     self._trackCache: Dict[str, shufflr.track.Track] = {}
     self._userIDCache: Dict[str, str] = {}
     self.DecompressRequestsCache()
-    self._CreateSpotify()
+    self._CreateRequestsSession()
 
   def __enter__(self) -> "Client":
     return self
@@ -63,8 +67,8 @@ class Client(object):
 
   def _CloseRequestsCache(self) -> None:
     if not self.useRequestCache: return
-    cast(requests_cache.backends.sqlite.SQLiteDict, self._sessionCache.redirects).close()  # type: ignore
-    self._sessionCache.responses.close()  # type: ignore
+    cast(requests_cache.backends.sqlite.SQLiteDict, self._requestsSessionCache.redirects).close()  # type: ignore
+    self._requestsSessionCache.responses.close()  # type: ignore
 
   def CompressRequestsCache(self) -> None:
     if not self.useRequestCache: return
@@ -91,54 +95,94 @@ class Client(object):
 
       self._compressedRequestsCachePath.unlink()
 
-  def _CreateSpotify(self) -> None:
+  def _CreateRequestsSession(self) -> None:
+    self._requestsSession: Optional[requests_cache.session.CachedSession]
+
     if self.useRequestCache:
-      requestsSession = requests_cache.session.CachedSession(
+      self._requestsSession = requests_cache.session.CachedSession(
         str(self._requestsCachePath),
         backend="sqlite",
         cache_control=True,
       )
-      self._sessionCache = cast(requests_cache.backends.sqlite.SQLiteCache, requestsSession.cache)
-      requestsSession.remove_expired_responses()
+      self._requestsSessionCache = cast(requests_cache.backends.sqlite.SQLiteCache, self._requestsSession.cache)
+      self._requestsSession.remove_expired_responses()
     else:
-      requestsSession = None
+      self._requestsSession = None
 
-    self._spotify = spotipy.Spotify(
-      auth_manager=spotipy.oauth2.SpotifyOAuth(
+  def _GetAPIClient(self, loginUserID: str) -> spotipy.Spotify:
+    if loginUserID in self._apiClientCache: return self._apiClientCache[loginUserID]
+
+    if re.match(r"^[0-9A-Za-z_-]+", loginUserID) is None:
+      raise ValueError(f"Invalid characters in login user ID {loginUserID}.")
+
+    with http.server.HTTPServer(
+      ("127.0.0.1", 11793),
+      AuthenticationHTTPRequestHandler,
+    ) as self._authenticationHttpServer:
+      self._authenticationHttpServer.timeout = 0.1
+      self._authenticationHttpServerIsRunning = True
+      authenticationHttpServerThread = threading.Thread(target=self._ServeHTTPRequests, daemon=True)
+      authenticationHttpServerThread.start()
+      gLogger.info(
+        "Creating API client... If you're asked to go to a URL, then open a new private browser window, "
+        f"copy and paste the URL, enter the Spotify credentials for user '{loginUserID}', "
+        "and copy and paste the URL you are redirected to."
+      )
+
+      authenticationCacheHandler = spotipy.oauth2.CacheFileHandler(
+        cache_path=pathlib.Path(f".shufflr-authentication-cache-{loginUserID}.json"),
+      )
+      authenticationScopes = [
+        "playlist-modify-private",
+        "playlist-read-private",
+        "playlist-read-collaborative",
+        "user-library-read",
+      ]
+      authenticationManager = spotipy.oauth2.SpotifyOAuth(
         client_id=self.clientID,
         client_secret=self.clientSecret,
         redirect_uri=self.redirectURI,
-        scope=[
-          "playlist-read-private",
-          "playlist-read-collaborative",
-          "playlist-modify-private",
-          "user-library-read",
-        ],
-      ),
-      requests_session=requestsSession,
-    )
+        scope=authenticationScopes,
+        cache_handler=authenticationCacheHandler,
+        open_browser=False,
+      )
+      apiClient = spotipy.Spotify(auth_manager=authenticationManager, requests_session=self._requestsSession)
 
-  def QueryCurrentUserID(self) -> str:
-    gLogger.info("Querying current user ID...")
-    return cast(str, self._spotify.current_user()["id"])
+      result = apiClient.current_user()
 
-  def QuerySavedTrackIDsOfCurrentUser(self) -> List[str]:
+      if result["id"] != loginUserID:
+        raise RuntimeError(
+          f"Authentication failed. Expected current user ID to be {loginUserID}', got '{result['id']}'."
+        )
+
+      self._authenticationHttpServerIsRunning = False
+
+    self._apiClientCache[loginUserID] = apiClient
+    return apiClient
+
+  def _ServeHTTPRequests(self) -> None:
+    assert self._authenticationHttpServer is not None
+
+    while self._authenticationHttpServerIsRunning:
+      self._authenticationHttpServer.handle_request()
+
+  def QuerySavedTrackIDsOfCurrentUser(self, loginUserID: str) -> List[str]:
     pageSize = 50
-    gLogger.info("Querying saved track IDs of current user...")
-    result = self._spotify.current_user_saved_tracks(limit=pageSize)
-    return [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(result)]
+    gLogger.info(f"Querying saved track IDs of user '{loginUserID}'...")
+    result = self._GetAPIClient(loginUserID).current_user_saved_tracks(limit=pageSize)
+    return [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(loginUserID, result)]
 
-  def QueryArtist(self, artistID: str) -> shufflr.artist.Artist:
-    return self.QueryArtists([artistID])[0]
+  def QueryArtist(self, loginUserID: str, artistID: str) -> shufflr.artist.Artist:
+    return self.QueryArtists(loginUserID, [artistID])[0]
 
-  def QueryArtists(self, artistIDs: Sequence[str]) -> List[shufflr.artist.Artist]:
+  def QueryArtists(self, loginUserID: str, artistIDs: Sequence[str]) -> List[shufflr.artist.Artist]:
     pageSize = 50
     newArtistIDs = sorted(set(artistIDs) - self._artistCache.keys())
     if len(newArtistIDs) > 0: gLogger.info("Querying {}...".format(Client._FormatNoun(len(newArtistIDs), "artist")))
 
     for offset in range(0, len(newArtistIDs), pageSize):
       pageArtistIDs = newArtistIDs[offset : offset + pageSize]
-      result = self._spotify.artists(pageArtistIDs)
+      result = self._GetAPIClient(loginUserID).artists(pageArtistIDs)
 
       for artistID, resultArtist in zip(pageArtistIDs, result["artists"]):
         self._artistCache[artistID] = shufflr.artist.Artist(
@@ -149,7 +193,7 @@ class Client(object):
 
     return [self._artistCache[artistID] for artistID in artistIDs]
 
-  def QueryTracks(self, trackIDs: Sequence[str]) -> List[shufflr.track.Track]:
+  def QueryTracks(self, loginUserID: str, trackIDs: Sequence[str]) -> List[shufflr.track.Track]:
     pageSize = 50
     newTrackIDs = sorted(set(trackIDs) - self._trackCache.keys())
     if len(newTrackIDs) > 0: gLogger.info("Querying {}...".format(Client._FormatNoun(len(newTrackIDs), "track")))
@@ -158,8 +202,8 @@ class Client(object):
 
     for offset in range(0, len(newTrackIDs), pageSize):
       pageTrackIDs = newTrackIDs[offset : offset + pageSize]
-      resultTracks = self._spotify.tracks(pageTrackIDs, market="from_token")
-      resultAudioFeatures = self._spotify.audio_features(pageTrackIDs)
+      resultTracks = self._GetAPIClient(loginUserID).tracks(pageTrackIDs, market="from_token")
+      resultAudioFeatures = self._GetAPIClient(loginUserID).audio_features(pageTrackIDs)
 
       for trackID, resultTrack, resultAudioFeature in zip(
         pageTrackIDs,
@@ -187,77 +231,95 @@ class Client(object):
         else:
           unplayableTrackIDs.add(trackID)
 
-    self.QueryArtists(artistIDs)
+    self.QueryArtists(loginUserID, artistIDs)
     return [self._trackCache[trackID] for trackID in trackIDs if trackID not in unplayableTrackIDs]
 
-  def QueryPlaylistIDsAndNamesOfCurrentUser(self) -> List[Tuple[str, str]]:
-    return self.QueryPlaylistIDsAndNamesOfUser("me")
-
-  def QueryPlaylistIDsAndNamesOfUser(self, userID: str) -> List[Tuple[str, str]]:
+  def QueryPlaylistIDsAndNamesOfUser(self, loginUserID: str, userID: str) -> List[Tuple[str, str]]:
     pageSize = 50
     gLogger.info(f"Querying playlist IDs of user '{userID}'...")
-    result = (self._spotify.current_user_playlists(limit=pageSize) if userID == "me" else
-              self._spotify.user_playlists(userID, limit=pageSize))
-    return [(resultPlaylist["id"], resultPlaylist["name"]) for resultPlaylist in self._QueryAllItems(result)]
+    result = self._GetAPIClient(loginUserID).user_playlists(userID, limit=pageSize)
+    return [(resultPlaylist["id"], resultPlaylist["name"])
+            for resultPlaylist in self._QueryAllItems(loginUserID, result)]
 
-  def QueryPlaylistWithSpecifier(
+  def QueryPlaylistWithName(
     self,
-    playlistSpecifier: shufflr.configuration.PlaylistSpecifier,
+    loginUserID: str,
+    playlistOwnerID: str,
+    playlistName: str,
   ) -> shufflr.playlist.Playlist:
     gLogger.info(
-      f"Querying playlist '{playlistSpecifier.playlistName}' of user '{playlistSpecifier.userID}'..."
+      f"Querying playlist '{playlistName}' of user '{playlistOwnerID}'..."
     )
-    playlistIDsAndNames = self.QueryPlaylistIDsAndNamesOfUser(playlistSpecifier.userID)
+    playlistIDsAndNames = self.QueryPlaylistIDsAndNamesOfUser(loginUserID, playlistOwnerID)
     playlistNames = [playlistName for _, playlistName in playlistIDsAndNames]
 
     try:
-      playlistIndex = playlistNames.index(playlistSpecifier.playlistName)
+      playlistIndex = playlistNames.index(playlistName)
     except ValueError:
       raise ValueError("Could not find playlist '{}' for user '{}'. Available playlists are: {}".format(
-        playlistSpecifier.playlistName,
-        playlistSpecifier.userID,
+        playlistName,
+        playlistOwnerID,
         ", ".join(f"'{playlistName}'" for playlistName in playlistNames),
       ))
 
-    return self.QueryPlaylist(playlistIDsAndNames[playlistIndex][0])
+    return self.QueryPlaylist(loginUserID, playlistIDsAndNames[playlistIndex][0])
 
-  def QueryPlaylist(self, playlistID: str) -> shufflr.playlist.Playlist:
+  def QueryPlaylist(self, loginUserID: str, playlistID: str) -> shufflr.playlist.Playlist:
     gLogger.info(f"Querying playlist ID '{playlistID}'...")
-    result = self._spotify.playlist(playlistID)
-    trackIDs = [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(result["tracks"])]
+    result = self._GetAPIClient(loginUserID).playlist(playlistID)
+    trackIDs = [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(loginUserID, result["tracks"])]
     return shufflr.playlist.Playlist(playlistID, result["owner"]["id"], result["name"], trackIDs)
 
-  def CreatePlaylist(self, playlistName: str, playlistDescription: str = "", isPublic: bool = False) -> str:
+  def CreatePlaylist(
+    self,
+    loginUserID: str,
+    playlistName: str,
+    playlistDescription: str = "",
+    isPublic: bool = False,
+  ) -> str:
     gLogger.info(f"Creating playlist '{playlistName}'...")
-    userID = self.QueryCurrentUserID()
-    result = self._spotify.user_playlist_create(userID, playlistName, public=isPublic, description=playlistDescription)
+    result = self._GetAPIClient(loginUserID).user_playlist_create(
+      loginUserID,
+      playlistName,
+      public=isPublic,
+      description=playlistDescription,
+    )
     return cast(str, result["id"])
 
-  def ClearPlaylist(self, playlistID: str) -> None:
+  def ClearPlaylist(self, loginUserID: str, playlistID: str) -> None:
     pageSize = 100
     gLogger.info(f"Clearing playlist ID '{playlistID}'...")
-    playlist = self.QueryPlaylist(playlistID)
+    playlist = self.QueryPlaylist(loginUserID, playlistID)
 
     for offset in range(0, len(playlist.trackIDs), pageSize):
       pageTrackIDs = playlist.trackIDs[offset : offset + pageSize]
-      self._spotify.playlist_remove_all_occurrences_of_items(playlistID, pageTrackIDs)
+      self._GetAPIClient(loginUserID).playlist_remove_all_occurrences_of_items(playlistID, pageTrackIDs)
 
-  def AddTracksToPlaylist(self, playlistID: str, trackIDs: Sequence[str]) -> None:
+  def AddTracksToPlaylist(self, loginUserID: str, playlistID: str, trackIDs: Sequence[str]) -> None:
     pageSize = 100
     gLogger.info("Adding {} to playlist ID '{}'...".format(Client._FormatNoun(len(trackIDs), "track"), playlistID))
 
     for offset in range(0, len(trackIDs), pageSize):
       pageTrackIDs = trackIDs[offset : offset + pageSize]
-      self._spotify.playlist_add_items(playlistID, pageTrackIDs)
+      self._GetAPIClient(loginUserID).playlist_add_items(playlistID, pageTrackIDs)
 
-  def _QueryAllItems(self, resultItems: Any) -> List[Any]:
+  def _QueryAllItems(self, loginUserID: str, resultItems: Any) -> List[Any]:
     items: List[Any] = []
 
     while True:
       items.extend(resultItems["items"])
       if resultItems["next"] is None: return items
-      resultItems = self._spotify._get(resultItems["next"])
+      resultItems = self._GetAPIClient(loginUserID)._get(resultItems["next"])
 
   @staticmethod
   def _FormatNoun(number: int, noun: str) -> str:
     return f"1 {noun}" if number == 1 else f"{number} {noun}s"
+
+
+class AuthenticationHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+  def do_GET(self) -> None:
+    self.send_response(200)
+    self.end_headers()
+
+  def log_message(self, format: str, *arguments: Any) -> None:
+    pass

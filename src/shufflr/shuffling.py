@@ -23,11 +23,12 @@ if TYPE_CHECKING:
 
 
 def ShuffleTracks(
+  loginUserID: str,
   tracks: Set["shufflr.track.Track"],
   configuration: "shufflr.configuration.Configuration",
 ) -> List["shufflr.track.Track"]:
   trackList = list(tracks)
-  distanceMatrix = ComputeDistanceMatrix(trackList, configuration)
+  distanceMatrix = ComputeDistanceMatrix(loginUserID, trackList, configuration)
   shuffledTrackIndices = SolveTravelingSalespersonProblem(
     distanceMatrix,
     configuration.tspSolutionDuration,
@@ -43,12 +44,13 @@ def ShuffleTracks(
       distanceMatrix[previousTrackIndex, currentTrackIndex]
       for previousTrackIndex, currentTrackIndex in zip(shuffledTrackIndices[:-1], shuffledTrackIndices[1:])
     ]
-    print(FormatTracks(shuffledTrackList, distances))
+    print(FormatTracks(loginUserID, shuffledTrackList, distances))
 
   return shuffledTrackList
 
 
 def ComputeDistanceMatrix(
+  loginUserID: str,
   tracks: Sequence["shufflr.track.Track"],
   configuration: "shufflr.configuration.Configuration",
 ) -> npt.NDArray[np.double]:
@@ -58,7 +60,7 @@ def ComputeDistanceMatrix(
   for trackIndex1, track1 in enumerate(tracks):
     for trackIndex2, track2 in enumerate(tracks):
       distanceMatrix[trackIndex1, trackIndex2] = (
-        track1.ComputeDistance(track2, configuration) if trackIndex1 <= trackIndex2 else
+        track1.ComputeDistance(loginUserID, track2, configuration) if trackIndex1 <= trackIndex2 else
         distanceMatrix[trackIndex2, trackIndex1]
       )
 
@@ -95,6 +97,7 @@ def SolveTravelingSalespersonProblem(
   searchParameters.time_limit.seconds = math.ceil(tspSolutionDuration)
   searchParameters.log_search = verbose >= 1
   solution = routingModel.SolveWithParameters(searchParameters)
+  gLogger.info(f"Found solution of TSP with objective value {solution.ObjectiveValue()}.")
 
   indices = []
   index = solution.Value(routingModel.NextVar(routingModel.Start(0)))
@@ -118,7 +121,7 @@ def TravelingSalespersonDistanceCallback(
   )
 
 
-def FormatTracks(tracks: Sequence["shufflr.track.Track"], distances: Sequence[float]) -> str:
+def FormatTracks(loginUserID: str, tracks: Sequence["shufflr.track.Track"], distances: Sequence[float]) -> str:
   lengthOfRemainingColumns = 50
   terminalWidth = shutil.get_terminal_size().columns
   artistAndTrackNameLength = terminalWidth - lengthOfRemainingColumns - 3
@@ -131,7 +134,7 @@ def FormatTracks(tracks: Sequence["shufflr.track.Track"], distances: Sequence[fl
   header = formatString.format("ARTIST", "TITLE", "DST", "ACS", "DNC", "ENR", "INS", "KEY", "LVN", "SPC", "TMP", "VLN")
   body = "\n".join(
     formatString.format(
-      ", ".join(artist.name for artist in track.GetArtists())[:artistNameLength],
+      ", ".join(artist.name for artist in track.GetArtists(loginUserID))[:artistNameLength],
       track.name[:trackNameLength],
       (FormatFraction(min(distances[trackIndex - 1], 9.99)) if trackIndex > 0 else "-"),
       FormatFraction(track.acousticness),

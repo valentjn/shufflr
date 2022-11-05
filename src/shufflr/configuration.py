@@ -19,7 +19,7 @@ class Configuration(object):
     self.disableRequestCache = False
     self.energyWeight = 1.0
     self.genreWeight = 3.0
-    self.inputPlaylistSpecifiers = [PlaylistSpecifier("me", "liked")]
+    self.inputPlaylistSpecifiers: Optional[List[PlaylistSpecifier]] = None
     self.inputPlaylistWeights: Optional[List[Optional[float]]] = None
     self.instrumentalnessWeight = 1.0
     self.keyWeight = 3.0
@@ -43,7 +43,7 @@ class Configuration(object):
     self.minimumValence: Optional[float] = None
     self.outputPlaylistDescription = "Created by Shufflr"
     self.outputPlaylistIsPublic = False
-    self.outputPlaylistName: Optional[str] = None
+    self.outputPlaylistSpecifier: Optional[PlaylistSpecifier] = None
     self.overwriteOutputPlaylist = False
     self.redirectURI = "http://127.0.0.1:11793/"
     self.speechinessWeight = 1.0
@@ -72,16 +72,12 @@ class Configuration(object):
       "-i",
       "--inputPlaylists",
       nargs="+",
-      default=defaultConfiguration.inputPlaylistSpecifiers,
       type=PlaylistSpecifier.ParseString,
       dest="inputPlaylistSpecifiers",
+      required=True,
       help="Playlist(s) to take the songs to be shuffled from. "
-      "Use the format 'USER_ID/PLAYLIST_DISPLAY_NAME' for the playlist of another user or just "
-      "'PLAYLIST_DISPLAY_NAME' for one of the playlists of the current user. "
-      "The user ID can be retrieved by extracting it from the link of the user profile, "
-      "which can be obtained via the Spotify app. "
-      "To use the playlist of the liked songs of the current user, use 'liked' or 'saved' (this is the default). "
-      "Note that Spotify currently does not provide a way to access the playlist of liked songs of other users.",
+      "Use the format 'PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME'. "
+      "To use the playlist of the liked songs, use 'liked' or 'saved' for PLAYLIST_DISPLAY_NAME.",
     )
     inputPlaylistArgumentGroup.add_argument(
       "-w",
@@ -155,9 +151,11 @@ class Configuration(object):
     outputPlaylistArgumentGroup.add_argument(
       "-o",
       "--outputPlaylist",
-      dest="outputPlaylistName",
-      help="If specified, the list of shuffled songs is saved as a playlist with this name under the current user "
+      type=PlaylistSpecifier.ParseString,
+      dest="outputPlaylistSpecifier",
+      help="If specified, the list of shuffled songs is saved as a playlist with this name "
       "(--overwriteOutputPlaylist has to be specified if the playlist already exists). "
+      "Use the format 'PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME'. "
       "Otherwise, the playlist is just printed (except if --quiet is given).",
     )
     outputPlaylistArgumentGroup.add_argument(
@@ -206,14 +204,11 @@ class Configuration(object):
 
 
 class PlaylistSpecifier(object):
-  def __init__(self, userID: str, playlistName: str) -> None:
-    self.userID = userID
+  def __init__(self, playlistOwnerID: str, playlistName: str) -> None:
+    self.playlistOwnerID = playlistOwnerID
     self.playlistName = playlistName
 
   @staticmethod
   def ParseString(string: str) -> "PlaylistSpecifier":
-    if "/" in string:
-      delimiterIndex = string.index("/")
-      return PlaylistSpecifier(string[:delimiterIndex], string[delimiterIndex + 1:])
-    else:
-      return PlaylistSpecifier("me", string)
+    delimiterIndex = string.index("/")
+    return PlaylistSpecifier(string[:delimiterIndex], string[delimiterIndex + 1:])

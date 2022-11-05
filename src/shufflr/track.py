@@ -146,15 +146,22 @@ class Track(object):
   def __hash__(self) -> int:
     return hash(self.id)
 
-  def GetArtists(self) -> List["shufflr.artist.Artist"]:
-    return self.client.QueryArtists(self.artistIDs)
+  def GetArtists(self, loginUserID: str) -> List["shufflr.artist.Artist"]:
+    return self.client.QueryArtists(loginUserID, self.artistIDs)
 
-  def ComputeDistance(self, other: "Track", configuration: "shufflr.configuration.Configuration") -> float:
+  def ComputeDistance(
+    self,
+    loginUserID: str,
+    other: "Track",
+    configuration: "shufflr.configuration.Configuration",
+  ) -> float:
     maximumTempoDifference = 10.0
     if self == other: return 0.0
     differentArtistDistance = 1.0 if len(set(self.artistIDs) & set(other.artistIDs)) > 0 else 0.0
     genreDistance = statistics.mean(
-      self.client.QueryArtist(selfArtistID).ComputeDistance(self.client.QueryArtist(otherArtistID))
+      self.client.QueryArtist(loginUserID, selfArtistID).ComputeDistance(
+        self.client.QueryArtist(loginUserID, otherArtistID)
+      )
       for selfArtistID in self.artistIDs for otherArtistID in other.artistIDs
     )
     keyDistance = (0.0 if (self.key is not None) and (other.key is not None) and self.key.IsCompatible(other.key) else

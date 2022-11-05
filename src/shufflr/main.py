@@ -27,11 +27,13 @@ def Main(argv: Optional[Sequence[str]] = None) -> None:
     gLogger.setLevel(logging.WARNING)
 
   if configuration.verbose >= 1: http.client.HTTPConnection.debuglevel = 2
+  assert configuration.inputPlaylistSpecifiers is not None
+  arbitraryLoginUserID = configuration.inputPlaylistSpecifiers[0].playlistOwnerID
 
   with shufflr.client.Client(
-    configuration.clientID,
-    configuration.clientSecret,
-    configuration.redirectURI,
+    clientID=configuration.clientID,
+    clientSecret=configuration.clientSecret,
+    redirectURI=configuration.redirectURI,
     useRequestCache=not configuration.disableRequestCache,
   ) as client:
     tracks = shufflr.playlist.CollectInputTracks(
@@ -40,12 +42,12 @@ def Main(argv: Optional[Sequence[str]] = None) -> None:
       configuration.inputPlaylistWeights,
     )
     tracks = shufflr.playlist.SelectInputTracks(tracks, configuration)
-    shuffledTracks = shufflr.shuffling.ShuffleTracks(tracks, configuration)
+    shuffledTracks = shufflr.shuffling.ShuffleTracks(arbitraryLoginUserID, tracks, configuration)
 
-    if configuration.outputPlaylistName is not None:
+    if configuration.outputPlaylistSpecifier is not None:
       shufflr.playlist.SavePlaylist(
         client,
-        configuration.outputPlaylistName,
+        configuration.outputPlaylistSpecifier,
         [track.id for track in shuffledTracks],
         playlistDescription=configuration.outputPlaylistDescription,
         isPublic=configuration.outputPlaylistIsPublic,
