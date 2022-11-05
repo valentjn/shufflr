@@ -66,40 +66,7 @@ class Key(enum.Enum):
               Key.fSharpMinor, Key.gMinor, Key.aFlatMinor, Key.aMinor, Key.bFlatMinor, Key.bMinor][spotifyKey]
 
   def IsCompatible(self, other: "Key") -> bool:
-    majorKeys = [
-      Key.cMajor, Key.gMajor, Key.dMajor, Key.aMajor, Key.eMajor, Key.bMajor,
-      Key.fSharpMajor, Key.dFlatMajor, Key.aFlatMajor, Key.eFlatMajor, Key.bFlatMajor, Key.fMajor,
-    ]
-    minorKeys = [
-      Key.aMinor, Key.eMinor, Key.bMinor, Key.fSharpMinor, Key.dFlatMinor, Key.aFlatMinor,
-      Key.eFlatMinor, Key.bFlatMinor, Key.fMinor, Key.cMinor, Key.gMinor, Key.dMinor,
-    ]
-
-    selfMajorIndex = Key._FindKey(self, majorKeys)
-    selfMinorIndex = Key._FindKey(self, minorKeys)
-    otherMajorIndex = Key._FindKey(other, majorKeys)
-    otherMinorIndex = Key._FindKey(other, minorKeys)
-
-    if (selfMajorIndex is not None) and (otherMajorIndex is not None):
-      return (
-        (selfMajorIndex == otherMajorIndex) or
-        (selfMajorIndex == otherMajorIndex - 1) or
-        (selfMajorIndex == otherMajorIndex + 1) or
-        (selfMajorIndex == otherMajorIndex - 11) or
-        (selfMajorIndex == otherMajorIndex + 11)
-      )
-    elif (selfMinorIndex is not None) and (otherMinorIndex is not None):
-      return (
-        (selfMinorIndex == otherMinorIndex) or
-        (selfMinorIndex == otherMinorIndex - 1) or
-        (selfMinorIndex == otherMinorIndex + 1) or
-        (selfMinorIndex == otherMinorIndex - 11) or
-        (selfMinorIndex == otherMinorIndex + 11)
-      )
-    elif (selfMajorIndex is not None) and (otherMinorIndex is not None):
-      return selfMajorIndex == otherMinorIndex
-    else:
-      return selfMinorIndex == otherMajorIndex
+    return other in gCompatibleKeys[self]
 
   @staticmethod
   def _FindKey(key: "Key", keys: List["Key"]) -> Optional[int]:
@@ -107,6 +74,34 @@ class Key(enum.Enum):
       return keys.index(key)
     except ValueError:
       return None
+
+
+gCompatibleKeys = {
+  Key.cMajor: {Key.cMajor, Key.aMinor, Key.gMajor, Key.fMajor},
+  Key.cMinor: {Key.cMinor, Key.eFlatMajor, Key.gMinor, Key.fMinor},
+  Key.dFlatMajor: {Key.dFlatMajor, Key.bFlatMinor, Key.aFlatMajor, Key.fSharpMajor},
+  Key.dFlatMinor: {Key.dFlatMinor, Key.eMajor, Key.aFlatMinor, Key.fSharpMinor},
+  Key.dMajor: {Key.dMajor, Key.bMinor, Key.aMajor, Key.gMajor},
+  Key.dMinor: {Key.dMinor, Key.fMajor, Key.aMinor, Key.gMinor},
+  Key.eFlatMajor: {Key.eFlatMajor, Key.cMinor, Key.bFlatMajor, Key.aFlatMajor},
+  Key.eFlatMinor: {Key.eFlatMinor, Key.fSharpMajor, Key.bFlatMinor, Key.aFlatMinor},
+  Key.eMajor: {Key.eMajor, Key.dFlatMinor, Key.bMajor, Key.aMajor},
+  Key.eMinor: {Key.eMinor, Key.gMajor, Key.bMinor, Key.aMinor},
+  Key.fMajor: {Key.fMajor, Key.dMinor, Key.cMajor, Key.bFlatMajor},
+  Key.fMinor: {Key.fMinor, Key.aFlatMajor, Key.cMinor, Key.bFlatMinor},
+  Key.fSharpMajor: {Key.fSharpMajor, Key.eFlatMinor, Key.dFlatMajor, Key.bMajor},
+  Key.fSharpMinor: {Key.fSharpMinor, Key.aMajor, Key.dFlatMinor, Key.bMinor},
+  Key.gMajor: {Key.gMajor, Key.eMinor, Key.dMajor, Key.cMajor},
+  Key.gMinor: {Key.gMinor, Key.bFlatMajor, Key.dMinor, Key.cMinor},
+  Key.aFlatMajor: {Key.aFlatMajor, Key.fMinor, Key.eFlatMajor, Key.dFlatMajor},
+  Key.aFlatMinor: {Key.aFlatMinor, Key.bMajor, Key.eFlatMinor, Key.dFlatMinor},
+  Key.aMajor: {Key.aMajor, Key.fSharpMinor, Key.eMajor, Key.dMajor},
+  Key.aMinor: {Key.aMinor, Key.cMajor, Key.eMinor, Key.dMinor},
+  Key.bFlatMajor: {Key.bFlatMajor, Key.gMinor, Key.fMajor, Key.eFlatMajor},
+  Key.bFlatMinor: {Key.bFlatMinor, Key.dFlatMajor, Key.fMinor, Key.eFlatMinor},
+  Key.bMajor: {Key.bMajor, Key.aFlatMinor, Key.fSharpMajor, Key.eMajor},
+  Key.bMinor: {Key.bMinor, Key.dMajor, Key.fSharpMinor, Key.eMinor},
+}
 
 
 class Track(object):
