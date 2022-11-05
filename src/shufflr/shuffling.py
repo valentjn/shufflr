@@ -7,7 +7,7 @@
 
 import functools
 import shutil
-from typing import cast, List, Optional, Sequence, Set
+from typing import cast, List, Optional, Sequence, Set, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -15,14 +15,16 @@ import ortools.constraint_solver.routing_enums_pb2 as routing_enums_pb2
 import ortools.constraint_solver.pywrapcp as pywrapcp
 
 from shufflr.logging import gLogger
-import shufflr.track
+
+if TYPE_CHECKING:
+  import shufflr.track
 
 
 def ShuffleTracks(
-  tracks: Set[shufflr.track.Track],
+  tracks: Set["shufflr.track.Track"],
   maximumNumberOfTracks: Optional[int] = None,
   verbose: int = 0,
-) -> List[shufflr.track.Track]:
+) -> List["shufflr.track.Track"]:
   trackList = list(tracks)
   distanceMatrix = ComputeDistanceMatrix(trackList)
   shuffledTrackIndices = SolveTravelingSalespersonProblem(distanceMatrix, verbose=verbose)
@@ -39,7 +41,7 @@ def ShuffleTracks(
   return shuffledTrackList
 
 
-def ComputeDistanceMatrix(tracks: Sequence[shufflr.track.Track]) -> npt.NDArray[np.double]:
+def ComputeDistanceMatrix(tracks: Sequence["shufflr.track.Track"]) -> npt.NDArray[np.double]:
   gLogger.info("Computing distance matrix...")
   distanceMatrix = np.zeros((len(tracks), len(tracks)))
 
@@ -101,7 +103,7 @@ def TravelingSalespersonDistanceCallback(
   )
 
 
-def FormatTracks(tracks: Sequence[shufflr.track.Track], distances: Sequence[float]) -> str:
+def FormatTracks(tracks: Sequence["shufflr.track.Track"], distances: Sequence[float]) -> str:
   lengthOfRemainingColumns = 50
   terminalWidth = shutil.get_terminal_size().columns
   artistAndTrackNameLength = terminalWidth - lengthOfRemainingColumns - 3
