@@ -15,6 +15,7 @@ class Configuration(object):
     self.clientSecret: Optional[str] = None
     self.inputPlaylistSpecifiers: List[PlaylistSpecifier] = [PlaylistSpecifier("me", "liked")]
     self.inputPlaylistWeights: Optional[List[Optional[float]]] = None
+    self.maximumNumberOfSongs: Optional[int] = None
     self.outputPlaylistDescription = "Created by Shufflr"
     self.outputPlaylistIsPublic = False
     self.outputPlaylistName: Optional[str] = None
@@ -66,6 +67,13 @@ class Configuration(object):
       "Use the special value '*' to include all songs of a playlist. "
       "This playlist is then discarded for the computation of the number of songs for the other playlists. "
       "The default is to use '*' for all input playlists.",
+    )
+
+    songSelectionArgumentGroup = argumentParser.add_argument_group("song selection options")
+    songSelectionArgumentGroup.add_argument(
+      "--maximumNumberOfSongs",
+      type=int,
+      help="Maximum number of songs in the output playlist. If omitted, then all songs are taken."
     )
 
     outputPlaylistArgumentGroup = argumentParser.add_argument_group("output playlist options")

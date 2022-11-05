@@ -7,7 +7,7 @@
 
 import functools
 import shutil
-from typing import cast, List, Sequence, Set
+from typing import cast, List, Optional, Sequence, Set
 
 import numpy as np
 import numpy.typing as npt
@@ -18,11 +18,16 @@ from shufflr.logging import gLogger
 import shufflr.track
 
 
-def ShuffleTracks(tracks: Set[shufflr.track.Track], verbose: int = 0) -> List[shufflr.track.Track]:
+def ShuffleTracks(
+  tracks: Set[shufflr.track.Track],
+  maximumNumberOfTracks: Optional[int] = None,
+  verbose: int = 0,
+) -> List[shufflr.track.Track]:
   trackList = list(tracks)
   distanceMatrix = ComputeDistanceMatrix(trackList)
   shuffledTrackIndices = SolveTravelingSalespersonProblem(distanceMatrix, verbose=verbose)
   shuffledTrackList = [trackList[trackIndex] for trackIndex in shuffledTrackIndices]
+  if maximumNumberOfTracks is not None: shuffledTrackList = shuffledTrackList[:maximumNumberOfTracks]
 
   if verbose >= 0:
     distances = [
