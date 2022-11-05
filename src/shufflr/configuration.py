@@ -77,10 +77,10 @@ class Configuration(object):
       dest="inputPlaylistSpecifiers",
       help="Playlist(s) to take the songs to be shuffled from. "
       "Use the format 'USER_ID/PLAYLIST_DISPLAY_NAME' for the playlist of another user or just "
-      "'PLAYLIST_DISPLAY_NAME' for one of your playlists. "
+      "'PLAYLIST_DISPLAY_NAME' for one of the playlists of the current user. "
       "The user ID can be retrieved by extracting it from the link of the user profile, "
       "which can be obtained via the Spotify app. "
-      "To use the playlist of your liked songs, use 'liked' or 'saved' (this is the default). "
+      "To use the playlist of the liked songs of the current user, use 'liked' or 'saved' (this is the default). "
       "Note that Spotify currently does not provide a way to access the playlist of liked songs of other users.",
     )
     inputPlaylistArgumentGroup.add_argument(
