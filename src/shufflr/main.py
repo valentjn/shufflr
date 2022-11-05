@@ -8,6 +8,7 @@
 import http.client
 import logging
 import sys
+from typing import Optional, Sequence
 
 import shufflr.client
 import shufflr.configuration
@@ -16,9 +17,9 @@ import shufflr.playlist
 import shufflr.shuffling
 
 
-def Main() -> None:
+def Main(argv: Optional[Sequence[str]] = None) -> None:
   configuration = shufflr.configuration.Configuration()
-  configuration.ParseArguments(sys.argv)
+  configuration.ParseArguments(sys.argv if argv is None else argv)
 
   if configuration.verbose >= 0:
     gLogger.setLevel(logging.INFO)
