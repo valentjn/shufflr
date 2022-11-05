@@ -35,7 +35,7 @@ def CollectInputTracks(
     if (playlistSpecifier.userID == "me") and (playlistSpecifier.playlistName in ["liked", "saved"]):
       trackIDsOfPlaylist = client.QuerySavedTrackIDsOfCurrentUser()
     else:
-      playlist = client.QueryPlaylist(playlistSpecifier)
+      playlist = client.QueryPlaylistWithSpecifier(playlistSpecifier)
       trackIDsOfPlaylist = playlist.trackIDs
 
     trackIDsOfPlaylists.append(trackIDsOfPlaylist)

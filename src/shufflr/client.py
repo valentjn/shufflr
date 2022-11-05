@@ -173,6 +173,9 @@ class Client(object):
     self.QueryArtists(artistIDs)
     return [self._trackCache[trackID] for trackID in trackIDs if trackID not in unplayableTrackIDs]
 
+  def QueryPlaylistIDsAndNamesOfCurrentUser(self) -> List[Tuple[str, str]]:
+    return self.QueryPlaylistIDsAndNamesOfUser("me")
+
   def QueryPlaylistIDsAndNamesOfUser(self, userID: str) -> List[Tuple[str, str]]:
     pageSize = 50
     gLogger.info(f"Querying playlist IDs of user '{userID}'...")
@@ -180,7 +183,10 @@ class Client(object):
               self._spotify.user_playlists(userID, limit=pageSize))
     return [(resultPlaylist["id"], resultPlaylist["name"]) for resultPlaylist in self._QueryAllItems(result)]
 
-  def QueryPlaylist(self, playlistSpecifier: shufflr.configuration.PlaylistSpecifier) -> shufflr.playlist.Playlist:
+  def QueryPlaylistWithSpecifier(
+    self,
+    playlistSpecifier: shufflr.configuration.PlaylistSpecifier,
+  ) -> shufflr.playlist.Playlist:
     gLogger.info(
       f"Querying playlist '{playlistSpecifier.playlistName}' of user '{playlistSpecifier.userID}'..."
     )
@@ -196,10 +202,13 @@ class Client(object):
         ", ".join(f"'{playlistName}'" for playlistName in playlistNames),
       ))
 
-    playlistID, playlistName = playlistIDsAndNames[playlistIndex]
+    return self.QueryPlaylist(playlistIDsAndNames[playlistIndex][0])
+
+  def QueryPlaylist(self, playlistID: str) -> shufflr.playlist.Playlist:
+    gLogger.info(f"Querying playlist ID '{playlistID}'...")
     result = self._spotify.playlist(playlistID)
     trackIDs = [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(result["tracks"])]
-    return shufflr.playlist.Playlist(playlistID, playlistSpecifier.userID, playlistName, trackIDs)
+    return shufflr.playlist.Playlist(playlistID, result["owner"]["id"], result["name"], trackIDs)
 
   def _QueryAllItems(self, resultItems: Any) -> List[Any]:
     items: List[Any] = []
