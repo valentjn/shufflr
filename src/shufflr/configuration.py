@@ -46,6 +46,7 @@ class Configuration(object):
     self.outputPlaylistSpecifier: Optional[PlaylistSpecifier] = None
     self.overwriteOutputPlaylist = False
     self.redirectURI = "http://127.0.0.1:11793/"
+    self.resetAuthenticationCache = False
     self.resetRequestCache = False
     self.speechinessWeight = 1.0
     self.tempoWeight = 2.0
@@ -189,6 +190,11 @@ class Configuration(object):
       "--redirectURI",
       default=defaultConfiguration.redirectURI,
       help="URI opened by Spotify after successful logins.",
+    )
+    apiArgumentGroup.add_argument(
+      "--resetAuthenticationCache",
+      action="store_true",
+      help="Delete cache file for API authentication tokens when starting.",
     )
     apiArgumentGroup.add_argument(
       "--disableRequestCache",

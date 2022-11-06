@@ -34,6 +34,7 @@ def Main(argv: Optional[Sequence[str]] = None) -> None:
     clientID=configuration.clientID,
     clientSecret=configuration.clientSecret,
     redirectURI=configuration.redirectURI,
+    resetAuthenticationCache=configuration.resetAuthenticationCache,
     useRequestCache=not configuration.disableRequestCache,
     resetRequestCache=configuration.resetRequestCache,
   ) as client:

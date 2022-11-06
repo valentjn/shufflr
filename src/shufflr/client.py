@@ -28,6 +28,7 @@ class Client(object):
     clientID: Optional[str] = None,
     clientSecret: Optional[str] = None,
     redirectURI: Optional[str] = None,
+    resetAuthenticationCache: bool = False,
     useRequestCache: bool = True,
     resetRequestCache: bool = False,
   ) -> None:
@@ -41,6 +42,7 @@ class Client(object):
     self._authenticationHttpServerIsRunning = False
     self._requestCachePath = pathlib.Path(".shufflr-request-cache.sqlite")
     self._compressedRequestCachePath = self._requestCachePath.parent / f"{self._requestCachePath.name}.xz"
+    self._resetAuthenticationCache = resetAuthenticationCache
     self._trackCache: Dict[str, shufflr.track.Track] = {}
     self._userIDCache: Dict[str, str] = {}
     if resetRequestCache: self._DeleteRequestCache()
@@ -134,9 +136,9 @@ class Client(object):
         "and copy and paste the URL you are redirected to."
       )
 
-      authenticationCacheHandler = spotipy.oauth2.CacheFileHandler(
-        cache_path=pathlib.Path(f".shufflr-authentication-cache-{loginUserID}.json"),
-      )
+      authenticationCachePath = pathlib.Path(f".shufflr-authentication-cache-{loginUserID}.json")
+      if self._resetAuthenticationCache: authenticationCachePath.unlink(missing_ok=True)
+      authenticationCacheHandler = spotipy.oauth2.CacheFileHandler(cache_path=authenticationCachePath)
       authenticationScopes = [
         "playlist-modify-private",
         "playlist-read-private",
