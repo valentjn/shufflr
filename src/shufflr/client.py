@@ -38,11 +38,11 @@ class Client(object):
     self._artistCache: Dict[str, shufflr.artist.Artist] = {}
     self._authenticationHttpServer: Optional[http.server.HTTPServer] = None
     self._authenticationHttpServerIsRunning = False
-    self._requestsCachePath = pathlib.Path(".shufflr-requests-cache.sqlite")
-    self._compressedRequestsCachePath = self._requestsCachePath.parent / f"{self._requestsCachePath.name}.xz"
+    self._requestCachePath = pathlib.Path(".shufflr-request-cache.sqlite")
+    self._compressedRequestCachePath = self._requestCachePath.parent / f"{self._requestCachePath.name}.xz"
     self._trackCache: Dict[str, shufflr.track.Track] = {}
     self._userIDCache: Dict[str, str] = {}
-    self.DecompressRequestsCache()
+    self._DecompressRequestCache()
     self._CreateRequestsSession()
 
   def __enter__(self) -> "Client":
@@ -57,50 +57,53 @@ class Client(object):
     if not self.useRequestCache: return None
 
     if (exceptionType is None) or (exceptionType is KeyboardInterrupt):
-      self.CompressRequestsCache()
+      self._CompressRequestCache()
     else:
-      self._CloseRequestsCache()
-      self._compressedRequestsCachePath.unlink(missing_ok=True)
-      self._requestsCachePath.unlink(missing_ok=True)
+      self._CloseRequestCache()
+      self._DeleteRequestCache()
 
     return None
 
-  def _CloseRequestsCache(self) -> None:
+  def _CompressRequestCache(self) -> None:
+    if not self.useRequestCache: return
+    self._CloseRequestCache()
+
+    if self._requestCachePath.is_file():
+      gLogger.info(f"Compressing requests cache {str(self._requestCachePath)!r} to "
+                   f"{str(self._compressedRequestCachePath)!r}...")
+
+      with lzma.open(self._compressedRequestCachePath, "w") as file:
+        file.write(self._requestCachePath.read_bytes())
+
+      self._requestCachePath.unlink()
+
+  def _DecompressRequestCache(self) -> None:
+    if not self.useRequestCache: return
+
+    if self._compressedRequestCachePath.is_file():
+      gLogger.info(f"Decompressing requests cache {str(self._compressedRequestCachePath)!r} to "
+                   f"{str(self._requestCachePath)!r}...")
+
+      with lzma.open(self._compressedRequestCachePath, "r") as file:
+        self._requestCachePath.write_bytes(file.read())
+
+      self._compressedRequestCachePath.unlink()
+
+  def _CloseRequestCache(self) -> None:
     if not self.useRequestCache: return
     cast(requests_cache.backends.sqlite.SQLiteDict, self._requestsSessionCache.redirects).close()  # type: ignore
     self._requestsSessionCache.responses.close()  # type: ignore
 
-  def CompressRequestsCache(self) -> None:
-    if not self.useRequestCache: return
-    self._CloseRequestsCache()
-
-    if self._requestsCachePath.is_file():
-      gLogger.info(f"Compressing requests cache {str(self._requestsCachePath)!r} to "
-                   f"{str(self._compressedRequestsCachePath)!r}...")
-
-      with lzma.open(self._compressedRequestsCachePath, "w") as file:
-        file.write(self._requestsCachePath.read_bytes())
-
-      self._requestsCachePath.unlink()
-
-  def DecompressRequestsCache(self) -> None:
-    if not self.useRequestCache: return
-
-    if self._compressedRequestsCachePath.is_file():
-      gLogger.info(f"Decompressing requests cache {str(self._compressedRequestsCachePath)!r} to "
-                   f"{str(self._requestsCachePath)!r}...")
-
-      with lzma.open(self._compressedRequestsCachePath, "r") as file:
-        self._requestsCachePath.write_bytes(file.read())
-
-      self._compressedRequestsCachePath.unlink()
+  def _DeleteRequestCache(self) -> None:
+    self._compressedRequestCachePath.unlink(missing_ok=True)
+    self._requestCachePath.unlink(missing_ok=True)
 
   def _CreateRequestsSession(self) -> None:
     self._requestsSession: Optional[requests_cache.session.CachedSession]
 
     if self.useRequestCache:
       self._requestsSession = requests_cache.session.CachedSession(
-        str(self._requestsCachePath),
+        str(self._requestCachePath),
         backend="sqlite",
         cache_control=True,
       )
