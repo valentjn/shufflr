@@ -32,10 +32,16 @@ def CollectInputTracks(
 
   for playlistSpecifier in playlistSpecifiers:
     if playlistSpecifier.playlistName in ["liked", "saved"]:
-      trackIDsOfPlaylist = client.QuerySavedTrackIDsOfCurrentUser(playlistSpecifier.playlistOwnerID)
+      if playlistSpecifier.loginUserID != playlistSpecifier.playlistOwnerID:
+        raise RuntimeError(
+          f"Login user '{playlistSpecifier.loginUserID}' must equal playlist owner "
+          f"'{playlistSpecifier.playlistOwnerID}' when accessing liked songs."
+        )
+
+      trackIDsOfPlaylist = client.QuerySavedTrackIDsOfCurrentUser(playlistSpecifier.loginUserID)
     else:
       playlist = client.QueryPlaylistWithName(
-        playlistSpecifier.playlistOwnerID,
+        playlistSpecifier.loginUserID,
         playlistSpecifier.playlistOwnerID,
         playlistSpecifier.playlistName,
       )
@@ -65,7 +71,7 @@ def CollectInputTracks(
         numberOfSongs = round(totalNumberOfSongs * (playlistWeight / totalWeight))
         trackIDs.extend(trackIDsOfPlaylist[:numberOfSongs])
 
-  return set(client.QueryTracks(playlistSpecifiers[0].playlistOwnerID, trackIDs))
+  return set(client.QueryTracks(playlistSpecifiers[0].loginUserID, trackIDs))
 
 
 def SelectInputTracks(

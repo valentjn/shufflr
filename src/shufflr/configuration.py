@@ -6,6 +6,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import argparse
+import re
 from typing import List, Optional, Sequence
 
 
@@ -78,8 +79,14 @@ class Configuration(object):
       dest="inputPlaylistSpecifiers",
       required=True,
       help="Playlist(s) to take the songs to be shuffled from. "
-      "Use the format 'PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME'. "
-      "To use the playlist of the liked songs, use 'liked' or 'saved' for PLAYLIST_DISPLAY_NAME.",
+      "The format is 'LOGIN_USER_ID/PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME' or "
+      "'PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME'. "
+      "If you use the first format, then the playlist must be visible to the specified login user. For example, the "
+      "playlist is public, or it is private and the login user is a follower or collaborator of the playlist). "
+      "If you use the second format, then the playlist owner is used as login user. "
+      "To use the playlist of the user's liked songs, use 'liked' or 'saved' for PLAYLIST_DISPLAY_NAME. "
+      "This is only possible if LOGIN_USER_ID equals PLAYLIST_OWNER_ID (e.g., if you use the second format), "
+      "as it is not possible access other users' liked songs.",
     )
     inputPlaylistArgumentGroup.add_argument(
       "-w",
@@ -216,11 +223,30 @@ class Configuration(object):
 
 
 class PlaylistSpecifier(object):
-  def __init__(self, playlistOwnerID: str, playlistName: str) -> None:
+  def __init__(self, loginUserID: str, playlistOwnerID: str, playlistName: str) -> None:
+    self.loginUserID = loginUserID
     self.playlistOwnerID = playlistOwnerID
     self.playlistName = playlistName
 
   @staticmethod
   def ParseString(string: str) -> "PlaylistSpecifier":
-    delimiterIndex = string.index("/")
-    return PlaylistSpecifier(string[:delimiterIndex], string[delimiterIndex + 1:])
+    regexMatch = re.match(
+      r"^(?:(?P<loginUserID>[^/]+)/(?P<playlistOwnerID1>[^/]+)/(?P<playlistName1>.+)|"
+      r"(?P<playlistOwnerID2>[^/]+)/(?P<playlistName2>.+))$",
+      string,
+    )
+
+    if regexMatch is None:
+      raise ValueError(f"Invalid playlist specifier '{string}'.")
+    elif regexMatch.group("loginUserID") is not None:
+      return PlaylistSpecifier(
+        regexMatch.group("loginUserID"),
+        regexMatch.group("playlistOwnerID1"),
+        regexMatch.group("playlistName1"),
+      )
+    else:
+      return PlaylistSpecifier(
+        regexMatch.group("playlistOwnerID2"),
+        regexMatch.group("playlistOwnerID2"),
+        regexMatch.group("playlistName2"),
+      )
