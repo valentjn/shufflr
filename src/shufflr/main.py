@@ -35,6 +35,7 @@ def Main(argv: Optional[Sequence[str]] = None) -> None:
     clientSecret=configuration.clientSecret,
     redirectURI=configuration.redirectURI,
     useRequestCache=not configuration.disableRequestCache,
+    resetRequestCache=configuration.resetRequestCache,
   ) as client:
     tracks = shufflr.playlist.CollectInputTracks(
       client,

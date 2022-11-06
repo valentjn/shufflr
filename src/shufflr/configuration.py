@@ -46,6 +46,7 @@ class Configuration(object):
     self.outputPlaylistSpecifier: Optional[PlaylistSpecifier] = None
     self.overwriteOutputPlaylist = False
     self.redirectURI = "http://127.0.0.1:11793/"
+    self.resetRequestCache = False
     self.speechinessWeight = 1.0
     self.tempoWeight = 2.0
     self.tspSolutionDuration: float = 10.0
@@ -185,14 +186,19 @@ class Configuration(object):
     )
     apiArgumentGroup.add_argument("--clientSecret", help="Client secret to authenticate the app.")
     apiArgumentGroup.add_argument(
-      "--disableRequestCache",
-      action="store_true",
-      help="Prevent storing requests in a file-based cache and re-using responses.",
-    )
-    apiArgumentGroup.add_argument(
       "--redirectURI",
       default=defaultConfiguration.redirectURI,
       help="URI opened by Spotify after successful logins.",
+    )
+    apiArgumentGroup.add_argument(
+      "--disableRequestCache",
+      action="store_true",
+      help="Prevent storing API requests in a cache file and re-using responses.",
+    )
+    apiArgumentGroup.add_argument(
+      "--resetRequestCache",
+      action="store_true",
+      help="Delete cache file for API requests and responses when starting.",
     )
 
     arguments = argumentParser.parse_args(argv[1:])

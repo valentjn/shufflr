@@ -29,6 +29,7 @@ class Client(object):
     clientSecret: Optional[str] = None,
     redirectURI: Optional[str] = None,
     useRequestCache: bool = True,
+    resetRequestCache: bool = False,
   ) -> None:
     self.clientID = clientID
     self.clientSecret = clientSecret
@@ -42,6 +43,7 @@ class Client(object):
     self._compressedRequestCachePath = self._requestCachePath.parent / f"{self._requestCachePath.name}.xz"
     self._trackCache: Dict[str, shufflr.track.Track] = {}
     self._userIDCache: Dict[str, str] = {}
+    if resetRequestCache: self._DeleteRequestCache()
     self._DecompressRequestCache()
     self._CreateRequestsSession()
 
