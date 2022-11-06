@@ -8,6 +8,8 @@
 
 # Shufflr
 
+![Shufflr](resources/card.svg)
+
 Shuffle Spotify playlists such that consecutive songs are similar.
 
 ## Installation
