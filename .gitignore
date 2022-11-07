@@ -5,6 +5,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 *.pyc
 /.shufflr-authentication-cache-*.json
+/.shufflr-configuration.json
 /.shufflr-request-cache.sqlite.xz
 /.mypy_cache/
 /.vscode/

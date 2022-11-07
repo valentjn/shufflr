@@ -6,8 +6,10 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import argparse
+import json
+import pathlib
 import re
-from typing import List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 
 class Configuration(object):
@@ -52,23 +54,47 @@ class Configuration(object):
     self.speechinessWeight = 1.0
     self.tempoWeight = 2.0
     self.tspSolutionDuration: float = 10.0
+    self.userAliases = UserAliases()
     self.valenceWeight = 1.0
     self.verbose = 0
 
   def GetKeys(self) -> List[str]:
-    return sorted(settingKey for settingKey in vars(self) if not settingKey.startswith("_"))
+    return sorted(
+      settingKey for settingKey in vars(self)
+      if not settingKey.startswith("_") and (settingKey != "userAliases")
+    )
 
   def ParseArguments(self, argv: Sequence[str]) -> None:
+    argumentParser = Configuration._CreateArgumentParser()
+    arguments = argumentParser.parse_args(argv[1:])
+
+    specifiedArgumentParser = Configuration._CreateArgumentParser(useDefaults=False)
+    specifiedArguments = specifiedArgumentParser.parse_args(argv[1:])
+
+    for key in self.GetKeys():
+      if key in specifiedArguments: setattr(self, key, getattr(arguments, key))
+
+    if arguments.quiet: self.verbose = -1
+
+  @staticmethod
+  def _CreateArgumentParser(useDefaults: bool = True) -> argparse.ArgumentParser:
     argumentParser = argparse.ArgumentParser(
       prog="shufflr",
       description="Shufflr - Shuffle Spotify playlists such that consecutive songs are similar.",
       formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+      argument_default=None if useDefaults else argparse.SUPPRESS,
     )
     defaultConfiguration = Configuration()
 
     outputArgumentGroup = argumentParser.add_argument_group("output options")
     outputArgumentGroup.add_argument("-q", "--quiet", action="store_true", help="Only print warnings and errors.")
-    outputArgumentGroup.add_argument("-v", "--verbose", action="count", default=0, help="Print log messages.")
+    outputArgumentGroup.add_argument(
+      "-v",
+      "--verbose",
+      action="count",
+      default=0 if useDefaults else argparse.SUPPRESS,
+      help="Print log messages.",
+    )
 
     inputPlaylistArgumentGroup = argumentParser.add_argument_group("input playlist options")
     inputPlaylistArgumentGroup.add_argument(
@@ -112,7 +138,7 @@ class Configuration(object):
     songSelectionArgumentGroup.add_argument(
       "--tspSolutionDuration",
       type=float,
-      default=defaultConfiguration.tspSolutionDuration,
+      default=defaultConfiguration.tspSolutionDuration if useDefaults else argparse.SUPPRESS,
       help="Number of seconds taken to solve the traveling salesperson problem heuristically. "
       "For technical reasons, the duration is rounded up to the next integer.",
     )
@@ -139,7 +165,7 @@ class Configuration(object):
       songSelectionArgumentGroup.add_argument(
         f"--{weightArgumentName}",
         type=float,
-        default=getattr(defaultConfiguration, weightArgumentName),
+        default=getattr(defaultConfiguration, weightArgumentName) if useDefaults else argparse.SUPPRESS,
         help=f"Weight of song feature '{featureName}' ({featureDescription}).",
       )
 
@@ -169,7 +195,7 @@ class Configuration(object):
     )
     outputPlaylistArgumentGroup.add_argument(
       "--outputPlaylistDescription",
-      default=defaultConfiguration.outputPlaylistDescription,
+      default=defaultConfiguration.outputPlaylistDescription if useDefaults else argparse.SUPPRESS,
       help="The description of the output playlist created by --outputPlaylist.",
     )
     outputPlaylistArgumentGroup.add_argument(
@@ -189,13 +215,13 @@ class Configuration(object):
     apiArgumentGroup = argumentParser.add_argument_group("API options")
     apiArgumentGroup.add_argument(
       "--clientID",
-      default=defaultConfiguration.clientID,
+      default=defaultConfiguration.clientID if useDefaults else argparse.SUPPRESS,
       help="Client ID - unique identifier of the app.",
     )
     apiArgumentGroup.add_argument("--clientSecret", help="Client secret to authenticate the app.")
     apiArgumentGroup.add_argument(
       "--redirectURI",
-      default=defaultConfiguration.redirectURI,
+      default=defaultConfiguration.redirectURI if useDefaults else argparse.SUPPRESS,
       help="URI opened by Spotify after successful logins.",
     )
     apiArgumentGroup.add_argument(
@@ -214,12 +240,31 @@ class Configuration(object):
       help="Delete cache file for API requests and responses when starting.",
     )
 
-    arguments = argumentParser.parse_args(argv[1:])
+    return argumentParser
+
+  def ReadFile(self, path: pathlib.Path) -> None:
+    fileConfiguration = json.loads(path.read_text())
 
     for key in self.GetKeys():
-      if hasattr(arguments, key): setattr(self, key, getattr(arguments, key))
+      if key in fileConfiguration: setattr(self, key, fileConfiguration[key])
 
-    if arguments.quiet: self.verbose = -1
+    if fileConfiguration.get("quiet", False) == True: self.verbose = -1
+    self.userAliases = UserAliases(fileConfiguration.get("userAliases", {}))
+
+  def ApplyUserAliases(self) -> None:
+    if self.inputPlaylistSpecifiers is not None:
+      for playlistSpecifier in self.inputPlaylistSpecifiers:
+        playlistSpecifier.ApplyUserAliases(self.userAliases)
+
+    if self.outputPlaylistSpecifier is not None: self.outputPlaylistSpecifier.ApplyUserAliases(self.userAliases)
+
+
+class UserAliases(object):
+  def __init__(self, aliases: Dict[str, str] = {}) -> None:
+    self._aliases = aliases
+
+  def GetUserID(self, name: str) -> str:
+    return self._aliases.get(name, name)
 
 
 class PlaylistSpecifier(object):
@@ -227,6 +272,10 @@ class PlaylistSpecifier(object):
     self.loginUserID = loginUserID
     self.playlistOwnerID = playlistOwnerID
     self.playlistName = playlistName
+
+  def ApplyUserAliases(self, userAliases: UserAliases) -> None:
+    self.loginUserID = userAliases.GetUserID(self.loginUserID)
+    self.playlistOwnerID = userAliases.GetUserID(self.playlistOwnerID)
 
   @staticmethod
   def ParseString(string: str) -> "PlaylistSpecifier":

@@ -7,6 +7,7 @@
 
 import http.client
 import logging
+import pathlib
 import sys
 from typing import Optional, Sequence
 
@@ -19,7 +20,10 @@ import shufflr.shuffling
 
 def Main(argv: Optional[Sequence[str]] = None) -> None:
   configuration = shufflr.configuration.Configuration()
+  configurationPath = pathlib.Path(".shufflr-configuration.json")
+  if configurationPath.is_file(): configuration.ReadFile(configurationPath)
   configuration.ParseArguments(sys.argv if argv is None else argv)
+  configuration.ApplyUserAliases()
 
   if configuration.verbose >= 0:
     gLogger.setLevel(logging.INFO)
