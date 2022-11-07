@@ -65,10 +65,10 @@ class Configuration(object):
     )
 
   def ParseArguments(self, argv: Sequence[str]) -> None:
-    argumentParser = Configuration._CreateArgumentParser()
+    argumentParser = Configuration.CreateArgumentParser()
     arguments = argumentParser.parse_args(argv[1:])
 
-    specifiedArgumentParser = Configuration._CreateArgumentParser(useDefaults=False)
+    specifiedArgumentParser = Configuration.CreateArgumentParser(useDefaults=False)
     specifiedArguments = specifiedArgumentParser.parse_args(argv[1:])
 
     for key in self.GetKeys():
@@ -77,46 +77,56 @@ class Configuration(object):
     if arguments.quiet: self.verbose = -1
 
   @staticmethod
-  def _CreateArgumentParser(useDefaults: bool = True) -> argparse.ArgumentParser:
+  def CreateArgumentParser(useDefaults: bool = True) -> argparse.ArgumentParser:
     argumentParser = argparse.ArgumentParser(
       prog="shufflr",
       description="Shufflr - Shuffle Spotify playlists such that consecutive songs are similar.",
       formatter_class=argparse.ArgumentDefaultsHelpFormatter,
       argument_default=None if useDefaults else argparse.SUPPRESS,
+      add_help=False,
     )
     defaultConfiguration = Configuration()
 
-    outputArgumentGroup = argumentParser.add_argument_group("output options")
+    outputArgumentGroup = argumentParser.add_argument_group("Output arguments")
+    outputArgumentGroup.add_argument(
+      "-h",
+      "--help",
+      action="help",
+      default=argparse.SUPPRESS,
+      help="Show a help message and exit.",
+    )
     outputArgumentGroup.add_argument("-q", "--quiet", action="store_true", help="Only print warnings and errors.")
     outputArgumentGroup.add_argument(
       "-v",
       "--verbose",
       action="count",
       default=0 if useDefaults else argparse.SUPPRESS,
-      help="Print log messages.",
+      help="Print log messages. Specify multiple times to increase log verbosity.",
     )
 
-    inputPlaylistArgumentGroup = argumentParser.add_argument_group("input playlist options")
+    inputPlaylistArgumentGroup = argumentParser.add_argument_group("Input playlist arguments")
     inputPlaylistArgumentGroup.add_argument(
       "-i",
       "--inputPlaylists",
+      dest="inputPlaylistSpecifiers",
+      metavar="PLAYLISTSPECIFIER",
       nargs="+",
       type=PlaylistSpecifier.ParseString,
-      dest="inputPlaylistSpecifiers",
       required=True,
       help="Playlist(s) to take the songs to be shuffled from. "
-      "The format is 'LOGIN_USER_ID/PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME' or "
-      "'PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME'. "
+      "The format is `LOGIN_USER_ID/PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME` or "
+      "`PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME`. "
       "If you use the first format, then the playlist must be visible to the specified login user. For example, the "
-      "playlist is public, or it is private and the login user is a follower or collaborator of the playlist). "
+      "playlist is public, or it is private and the login user is a follower or collaborator of the playlist. "
       "If you use the second format, then the playlist owner is used as login user. "
-      "To use the playlist of the user's liked songs, use 'liked' or 'saved' for PLAYLIST_DISPLAY_NAME. "
-      "This is only possible if LOGIN_USER_ID equals PLAYLIST_OWNER_ID (e.g., if you use the second format), "
+      "To use the playlist of the user's liked songs, use `liked` or `saved` for `PLAYLIST_DISPLAY_NAME`. "
+      "This is only possible if `LOGIN_USER_ID` equals `PLAYLIST_OWNER_ID` (e.g., if you use the second format), "
       "as it is not possible access other users' liked songs.",
     )
     inputPlaylistArgumentGroup.add_argument(
       "-w",
       "--inputPlaylistWeights",
+      metavar="PLAYLISTWEIGHT",
       type=lambda argument: (None if argument == "*" else float(argument)),
       nargs="+",
       help="Weights for the shuffling of the input playlist. Specify one weight per input playlist. "
@@ -124,12 +134,12 @@ class Configuration(object):
       "input playlist. "
       "If you change the value for a playlist to 2, then twice as many songs are taken from that playlist "
       "compared to the other playlists. "
-      "Use the special value '*' to include all songs of a playlist. "
+      "Use the special value `*` to include all songs of a playlist. "
       "This playlist is then discarded for the computation of the number of songs for the other playlists. "
-      "The default is to use '*' for all input playlists.",
+      "The default is to use `*` for all input playlists.",
     )
 
-    songSelectionArgumentGroup = argumentParser.add_argument_group("song selection options")
+    songSelectionArgumentGroup = argumentParser.add_argument_group("Song selection arguments")
     songSelectionArgumentGroup.add_argument(
       "--maximumNumberOfSongs",
       type=int,
@@ -166,7 +176,7 @@ class Configuration(object):
         f"--{weightArgumentName}",
         type=float,
         default=getattr(defaultConfiguration, weightArgumentName) if useDefaults else argparse.SUPPRESS,
-        help=f"Weight of song feature '{featureName}' ({featureDescription}).",
+        help=f"Weight of song feature `{featureName}` ({featureDescription}).",
       )
 
       if featureName not in ["differentArtist", "genre", "key"]:
@@ -174,45 +184,47 @@ class Configuration(object):
         songSelectionArgumentGroup.add_argument(
           f"--minimum{capitalFeatureName}",
           type=float,
-          help=f"Minimum permitted value of song feature '{featureName}' ({featureDescription}) between 0 and 100.",
+          help=f"Minimum permitted value of song feature `{featureName}` ({featureDescription}) between 0 and 100.",
         )
         songSelectionArgumentGroup.add_argument(
           f"--maximum{capitalFeatureName}",
           type=float,
-          help=f"Maximum permitted value of song feature '{featureName}' ({featureDescription}) between 0 and 100.",
+          help=f"Maximum permitted value of song feature `{featureName}` ({featureDescription}) between 0 and 100.",
         )
 
-    outputPlaylistArgumentGroup = argumentParser.add_argument_group("output playlist options")
+    outputPlaylistArgumentGroup = argumentParser.add_argument_group("Output playlist arguments")
     outputPlaylistArgumentGroup.add_argument(
       "-o",
       "--outputPlaylist",
       type=PlaylistSpecifier.ParseString,
       dest="outputPlaylistSpecifier",
+      metavar="PLAYLISTSPECIFIER",
       help="If specified, the list of shuffled songs is saved as a playlist with this name "
-      "(--overwriteOutputPlaylist has to be specified if the playlist already exists). "
-      "Use the format 'PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME'. "
-      "Otherwise, the playlist is just printed (except if --quiet is given).",
+      "(`--overwriteOutputPlaylist` has to be specified if the playlist already exists). "
+      "Use the format `PLAYLIST_OWNER_ID/PLAYLIST_DISPLAY_NAME`. "
+      "Otherwise, the playlist is just printed (except if `--quiet` is given).",
     )
     outputPlaylistArgumentGroup.add_argument(
       "--outputPlaylistDescription",
+      metavar="PLAYLISTDESCRIPTION",
       default=defaultConfiguration.outputPlaylistDescription if useDefaults else argparse.SUPPRESS,
-      help="The description of the output playlist created by --outputPlaylist.",
+      help="The description of the output playlist created by `--outputPlaylist`.",
     )
     outputPlaylistArgumentGroup.add_argument(
       "--outputPlaylistIsPublic",
       action="store_true",
-      help="If specified, the output playlist created with --outputPlaylist is public. "
+      help="If specified, the output playlist created with `--outputPlaylist` is public. "
       "Otherwise, by default, it is private.",
     )
     outputPlaylistArgumentGroup.add_argument(
       "-f",
       "--overwriteOutputPlaylist",
       action="store_true",
-      help="If the output playlist specified by --outputPlaylist already exists, overwrite it. "
+      help="If the output playlist specified by `--outputPlaylist` already exists, overwrite it. "
       "Otherwise, an exception is thrown to prevent data loss.",
     )
 
-    apiArgumentGroup = argumentParser.add_argument_group("API options")
+    apiArgumentGroup = argumentParser.add_argument_group("API arguments")
     apiArgumentGroup.add_argument(
       "--clientID",
       default=defaultConfiguration.clientID if useDefaults else argparse.SUPPRESS,
