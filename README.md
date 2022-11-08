@@ -12,17 +12,69 @@
 
 Shuffle Spotify playlists such that consecutive songs are similar.
 
+## What It Does
+
+Shufflr takes one or more Spotify playlists such as your liked songs or custom playlists and outputs a new, shuffled playlist. The shuffled playlist contains songs from the input playlists such that consecutive songs are similar in genre, tempo, key, energy, etc.
+
+Shufflr works by combining metrics given by Spotify with custom metrics such as genre similarity and key compatibility to determine the &ldquo;distance&rdquo; of two songs. Smaller distance means greater similarity. Shufflr then solves a traveling salesperson problem to determine an order of the songs with small total distance.
+
+## Example
+
+Let's assume this is your input playlist:
+
+* Duck Sauce &ndash; Barbra Streisand
+* Mando Diao &ndash; Down in the Past
+* Spiller &ndash; Groovejet (If This Ain't Love)
+* Daft Punk &ndash; Harder, Better, Faster, Stronger
+* Avicii &ndash; Levels (Original Mix)
+* The White Stripes &ndash; Seven Nation Army
+
+With this input playlist, Shufflr generates the following output playlist (this information is printed as a table to standard output):
+
+| Artist            | Title                            | Dst     | Acs | Dnc | Enr | Ins | Key       | Lvn | Spc | Tmp | Vln |
+| ----------------- | -------------------------------- | ------: | --: | --: | --: | --: | --------: | --: | --: | --: | --: |
+| Duck Sauce        | Barbra Streisand                 | &mdash; |   0 |  80 |  93 |  45 | D&#x266d; |   5 |   9 | 128 | 39 |
+| Avicii            | Levels (Original Mix)            | 185     |   3 |  60 |  83 |  89 | d&#x266d; |  34 |   4 | 126 | 35 |
+| Daft Punk         | Harder, Better, Faster, Stronger | 156     |   4 |  82 |  72 |   0 | f&#x266f; |  36 |  14 | 123 | 69 |
+| Spiller           | Groovejet (If This Ain't Love)   | 193     |   0 |  80 |  63 |  27 |         a |  35 |   5 | 123 | 62 |
+| The White Stripes | Seven Nation Army                |  97     |   0 |  74 |  45 |  12 |         e |  34 |   7 | 124 | 28 |
+| Mando Diao        | Down in the Past                 | 149     |   0 |  54 |  70 |   0 |         b |   9 |   5 | 106 | 45 |
+
+Dst = distance to the previous song,
+Acs = acousticness,
+Dnc = danceability,
+Enr = energy,
+Ins = instrumentalness,
+Lvn = liveness,
+Spc = speechiness,
+Tmp = tempo,
+Vln = valence
+
+Similar genres are played together. The genre transitions from popular house to French house to rock. The key transitions harmonically three out of the five times (d&#x266d; to f&#x266f;, and a to e to b). Of course, this is just a simple toy example. For larger playlists, one can see that songs with similar energy, tempo, etc. are also played together.
+
 ## Installation
 
+Install Shufflr and all of its dependencies:
+
 ```bash
-pip install .
+pip3 install .
 ```
 
 ## Usage
 
-```bash
-python3 -m shufflr --clientSecret CLIENT_SECRET --inputPlaylists PLAYLIST1 PLAYLIST2
-```
+1. Login with your Spotify credentials at <https://developer.spotify.com/dashboard/> to open your Spotify Developer dashboard.
+2. Create a new app (probably named &ldquo;Shufflr&rdquo;).
+3. Go to the app page, click on &ldquo;Show Client Secret&rdquo;, and write down your client ID and client secret.
+4. Click on &ldquo;Edit Settings&rdquo;, enter `http://127.0.0.1:11793/` as redirect URI, and confirm.
+5. Click on &ldquo;Users and Access&rdquo; and add yourself (and maybe other users) to the list.
+6. Run Shufflr as follows:
+
+   ```bash
+   python3 -m shufflr --clientID CLIENT_ID --clientSecret CLIENT_SECRET -i USER_ID/PLAYLIST_NAME [USER_ID/PLAYLIST_NAME ...] -o USER_ID/PLAYLIST_NAME
+   ```
+
+7. When running for the first time, you will be prompted to go to a URL. Do so, login with your Spotify credentials, grant the app the necessary access, copy the URL to which you are redirected (it will start with `http://127.0.0.1:11793/`), and paste it into the terminal.
+8. If you are using multiple users, be sure to open the URL in a private window. Otherwise, you will probably be logged in as the same user as before due to browser cookies.
 
 ## Arguments
 
