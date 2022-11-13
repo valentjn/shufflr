@@ -8,7 +8,7 @@
 import functools
 import math
 import shutil
-from typing import cast, List, Optional, Sequence, Set, TYPE_CHECKING
+from typing import cast, List, Sequence, Set, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
