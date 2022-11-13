@@ -5,24 +5,56 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import difflib
-from typing import Dict, FrozenSet, Iterable
+import json
+import math
+import pathlib
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 
-class LongestCommonSubstringComputer(object):
-  _cache: Dict[FrozenSet[str], int] = {}
+def _NormalizeNumbers(numbers: Sequence[int]) -> List[float]:
+  minimumNumber = min(numbers)
+  maximumNumer = max(numbers)
+  return [(value - minimumNumber) / (maximumNumer - minimumNumber) for value in numbers]
+
+
+class GenreDistanceComputer(object):
+  @staticmethod
+  def _LoadData() -> Dict[str, Tuple[float, float, float, float, float]]:
+    genresFilePath = pathlib.Path(__file__).parent / "genres.json"
+
+    with open(genresFilePath, "r") as genresFile:
+      data: Dict[str, Tuple[int, int, int, int, int]] = json.load(genresFile)
+
+    genres = list(data.keys())
+    xs = _NormalizeNumbers([genreData[0] for genreData in data.values()])
+    ys = _NormalizeNumbers([genreData[1] for genreData in data.values()])
+    rs = [genreData[2] for genreData in data.values()]
+    gs = [genreData[3] for genreData in data.values()]
+    bs = [genreData[4] for genreData in data.values()]
+    colorFactor = 1.0 / (math.sqrt(3) * 255.0)
+    return {
+      genres[index]: (xs[index], ys[index], colorFactor * rs[index], colorFactor * gs[index], colorFactor * bs[index])
+      for index in range(len(data))
+    }
+
+  _data = _LoadData()
 
   @staticmethod
-  def ComputeLength(string1: str, string2: str) -> int:
-    cacheKey = frozenset([string1, string2])
+  def ComputeDistance(genre1: str, genre2: str) -> Optional[float]:
+    try:
+      genreData1 = GenreDistanceComputer._data[genre1]
+      genreData2 = GenreDistanceComputer._data[genre2]
+    except KeyError:
+      return None
 
-    if cacheKey in LongestCommonSubstringComputer._cache:
-      length = LongestCommonSubstringComputer._cache[cacheKey]
-    else:
-      length = difflib.SequenceMatcher(None, string1, string2, autojunk=False).find_longest_match().size
-      LongestCommonSubstringComputer._cache[cacheKey] = length
-
-    return length
+    return math.sqrt((
+        (genreData1[0] - genreData2[0]) ** 2.0 +
+        (genreData1[1] - genreData2[1]) ** 2.0 +
+        (genreData1[2] - genreData2[2]) ** 2.0 +
+        (genreData1[3] - genreData2[3]) ** 2.0 +
+        (genreData1[4] - genreData2[4]) ** 2.0
+      ) / 5.0
+    )
 
 
 class Artist(object):
@@ -38,11 +70,10 @@ class Artist(object):
     return hash(self.id)
 
   def ComputeDistance(self, other: "Artist") -> float:
-    if self == other:
-      return 0.0
-    elif (len(self.genres) == 0) or (len(other.genres) == 0):
-      return 1.0
-    else:
-      return min(1.0 - LongestCommonSubstringComputer.ComputeLength(selfGenre, otherGenre) /
-                 min(len(selfGenre), len(otherGenre))
-                 for selfGenre in self.genres for otherGenre in other.genres)
+    if self == other:return 0.0
+    genreDistances = [
+      GenreDistanceComputer.ComputeDistance(selfGenre, otherGenre)
+      for selfGenre in self.genres for otherGenre in other.genres
+    ]
+    nonNoneGenreDistances = [genreDistance for genreDistance in genreDistances if genreDistance is not None]
+    return min(nonNoneGenreDistances) if len(nonNoneGenreDistances) > 0 else 1.0
