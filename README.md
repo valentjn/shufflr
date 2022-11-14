@@ -80,7 +80,7 @@ pip3 install .
 
 * **[Output arguments](#output-arguments):** [`-h` / `--help`](#-h----help), [`-q` / `--quiet`](#-q----quiet), [`-v` / `--verbose`](#-v----verbose)
 * **[Input playlist arguments](#input-playlist-arguments):** [`-i` / `--inputPlaylists`](#-i----inputplaylists), [`-w` / `--inputPlaylistWeights`](#-w----inputplaylistweights)
-* **[Song selection arguments](#song-selection-arguments):** [`--maximumNumberOfSongs`](#--maximumnumberofsongs), [`--acousticnessWeight`](#--acousticnessweight), [`--minimumAcousticness`](#--minimumacousticness), [`--maximumAcousticness`](#--maximumacousticness), [`--danceabilityWeight`](#--danceabilityweight), [`--minimumDanceability`](#--minimumdanceability), [`--maximumDanceability`](#--maximumdanceability), [`--differentArtistWeight`](#--differentartistweight), [`--energyWeight`](#--energyweight), [`--minimumEnergy`](#--minimumenergy), [`--maximumEnergy`](#--maximumenergy), [`--genreWeight`](#--genreweight), [`--instrumentalnessWeight`](#--instrumentalnessweight), [`--minimumInstrumentalness`](#--minimuminstrumentalness), [`--maximumInstrumentalness`](#--maximuminstrumentalness), [`--keyWeight`](#--keyweight), [`--livenessWeight`](#--livenessweight), [`--minimumLiveness`](#--minimumliveness), [`--maximumLiveness`](#--maximumliveness), [`--speechinessWeight`](#--speechinessweight), [`--minimumSpeechiness`](#--minimumspeechiness), [`--maximumSpeechiness`](#--maximumspeechiness), [`--tempoWeight`](#--tempoweight), [`--minimumTempo`](#--minimumtempo), [`--maximumTempo`](#--maximumtempo), [`--valenceWeight`](#--valenceweight), [`--minimumValence`](#--minimumvalence), [`--maximumValence`](#--maximumvalence)
+* **[Song selection arguments](#song-selection-arguments):** [`--maximumNumberOfSongs`](#--maximumnumberofsongs), [`--acousticnessWeight`](#--acousticnessweight), [`--danceabilityWeight`](#--danceabilityweight), [`--differentArtistWeight`](#--differentartistweight), [`--energyWeight`](#--energyweight), [`--genreWeight`](#--genreweight), [`--instrumentalnessWeight`](#--instrumentalnessweight), [`--keyWeight`](#--keyweight), [`--livenessWeight`](#--livenessweight), [`--speechinessWeight`](#--speechinessweight), [`--tempoWeight`](#--tempoweight), [`--valenceWeight`](#--valenceweight), [`--minimumAcousticness`](#--minimumacousticness), [`--minimumDanceability`](#--minimumdanceability), [`--minimumEnergy`](#--minimumenergy), [`--minimumInstrumentalness`](#--minimuminstrumentalness), [`--minimumLiveness`](#--minimumliveness), [`--minimumSpeechiness`](#--minimumspeechiness), [`--minimumTempo`](#--minimumtempo), [`--minimumValence`](#--minimumvalence), [`--maximumAcousticness`](#--maximumacousticness), [`--maximumDanceability`](#--maximumdanceability), [`--maximumEnergy`](#--maximumenergy), [`--maximumInstrumentalness`](#--maximuminstrumentalness), [`--maximumLiveness`](#--maximumliveness), [`--maximumSpeechiness`](#--maximumspeechiness), [`--maximumTempo`](#--maximumtempo), [`--maximumValence`](#--maximumvalence)
 * **[Traveling salesperson problem (TSP) arguments](#traveling-salesperson-problem-tsp-arguments):** [`--tspImprovementSize`](#--tspimprovementsize), [`--tspImprovementTimeout`](#--tspimprovementtimeout), [`--plotTSP`](#--plottsp), [`--tspTimeout`](#--tsptimeout)
 * **[Output playlist arguments](#output-playlist-arguments):** [`-o` / `--outputPlaylist`](#-o----outputplaylist), [`--outputPlaylistDescription`](#--outputplaylistdescription), [`--outputPlaylistIsPublic`](#--outputplaylistispublic), [`-f` / `--overwriteOutputPlaylist`](#-f----overwriteoutputplaylist)
 * **[API arguments](#api-arguments):** [`--clientID`](#--clientid), [`--clientSecret`](#--clientsecret), [`--redirectURI`](#--redirecturi), [`--resetAuthenticationCache`](#--resetauthenticationcache), [`--disableRequestCache`](#--disablerequestcache), [`--resetRequestCache`](#--resetrequestcache)
@@ -129,35 +129,11 @@ Format: `--acousticnessWeight ACOUSTICNESSWEIGHT`
 
 Weight of song feature `acousticness` (confidence whether the song is acoustic). (default value: `1.0`)
 
-#### `--minimumAcousticness`
-
-Format: `--minimumAcousticness MINIMUMACOUSTICNESS`
-
-Minimum permitted value of song feature `acousticness` (confidence whether the song is acoustic) between 0 and 100.
-
-#### `--maximumAcousticness`
-
-Format: `--maximumAcousticness MAXIMUMACOUSTICNESS`
-
-Maximum permitted value of song feature `acousticness` (confidence whether the song is acoustic) between 0 and 100.
-
 #### `--danceabilityWeight`
 
 Format: `--danceabilityWeight DANCEABILITYWEIGHT`
 
 Weight of song feature `danceability` (how suitable the song is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity). (default value: `1.0`)
-
-#### `--minimumDanceability`
-
-Format: `--minimumDanceability MINIMUMDANCEABILITY`
-
-Minimum permitted value of song feature `danceability` (how suitable the song is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity) between 0 and 100.
-
-#### `--maximumDanceability`
-
-Format: `--maximumDanceability MAXIMUMDANCEABILITY`
-
-Maximum permitted value of song feature `danceability` (how suitable the song is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity) between 0 and 100.
 
 #### `--differentArtistWeight`
 
@@ -171,18 +147,6 @@ Format: `--energyWeight ENERGYWEIGHT`
 
 Weight of song feature `energy` (perceptual measure of intensity and activity; typically, energetic tracks feel fast, loud, and noisy). (default value: `1.0`)
 
-#### `--minimumEnergy`
-
-Format: `--minimumEnergy MINIMUMENERGY`
-
-Minimum permitted value of song feature `energy` (perceptual measure of intensity and activity; typically, energetic tracks feel fast, loud, and noisy) between 0 and 100.
-
-#### `--maximumEnergy`
-
-Format: `--maximumEnergy MAXIMUMENERGY`
-
-Maximum permitted value of song feature `energy` (perceptual measure of intensity and activity; typically, energetic tracks feel fast, loud, and noisy) between 0 and 100.
-
 #### `--genreWeight`
 
 Format: `--genreWeight GENREWEIGHT`
@@ -194,18 +158,6 @@ Weight of song feature `genre` (whether the genre of the song is similar to the 
 Format: `--instrumentalnessWeight INSTRUMENTALNESSWEIGHT`
 
 Weight of song feature `instrumentalness` (whether a track contains no vocals; 'ooh' and 'aah' sounds are treated as instrumental in this context). (default value: `1.0`)
-
-#### `--minimumInstrumentalness`
-
-Format: `--minimumInstrumentalness MINIMUMINSTRUMENTALNESS`
-
-Minimum permitted value of song feature `instrumentalness` (whether a track contains no vocals; 'ooh' and 'aah' sounds are treated as instrumental in this context) between 0 and 100.
-
-#### `--maximumInstrumentalness`
-
-Format: `--maximumInstrumentalness MAXIMUMINSTRUMENTALNESS`
-
-Maximum permitted value of song feature `instrumentalness` (whether a track contains no vocals; 'ooh' and 'aah' sounds are treated as instrumental in this context) between 0 and 100.
 
 #### `--keyWeight`
 
@@ -219,35 +171,11 @@ Format: `--livenessWeight LIVENESSWEIGHT`
 
 Weight of song feature `liveness` (confidence whether an audience is present in the recording). (default value: `1.0`)
 
-#### `--minimumLiveness`
-
-Format: `--minimumLiveness MINIMUMLIVENESS`
-
-Minimum permitted value of song feature `liveness` (confidence whether an audience is present in the recording) between 0 and 100.
-
-#### `--maximumLiveness`
-
-Format: `--maximumLiveness MAXIMUMLIVENESS`
-
-Maximum permitted value of song feature `liveness` (confidence whether an audience is present in the recording) between 0 and 100.
-
 #### `--speechinessWeight`
 
 Format: `--speechinessWeight SPEECHINESSWEIGHT`
 
 Weight of song feature `speechiness` (presence of spoken words in the song; values above 66 are probably made entirely of spoken words). (default value: `1.0`)
-
-#### `--minimumSpeechiness`
-
-Format: `--minimumSpeechiness MINIMUMSPEECHINESS`
-
-Minimum permitted value of song feature `speechiness` (presence of spoken words in the song; values above 66 are probably made entirely of spoken words) between 0 and 100.
-
-#### `--maximumSpeechiness`
-
-Format: `--maximumSpeechiness MAXIMUMSPEECHINESS`
-
-Maximum permitted value of song feature `speechiness` (presence of spoken words in the song; values above 66 are probably made entirely of spoken words) between 0 and 100.
 
 #### `--tempoWeight`
 
@@ -255,29 +183,101 @@ Format: `--tempoWeight TEMPOWEIGHT`
 
 Weight of song feature `tempo` (tempo of the song in beats per minute). (default value: `2.0`)
 
-#### `--minimumTempo`
-
-Format: `--minimumTempo MINIMUMTEMPO`
-
-Minimum permitted value of song feature `tempo` (tempo of the song in beats per minute) between 0 and 100.
-
-#### `--maximumTempo`
-
-Format: `--maximumTempo MAXIMUMTEMPO`
-
-Maximum permitted value of song feature `tempo` (tempo of the song in beats per minute) between 0 and 100.
-
 #### `--valenceWeight`
 
 Format: `--valenceWeight VALENCEWEIGHT`
 
 Weight of song feature `valence` (musical positiveness conveyed by the song). (default value: `1.0`)
 
+#### `--minimumAcousticness`
+
+Format: `--minimumAcousticness MINIMUMACOUSTICNESS`
+
+Minimum permitted value of song feature `acousticness` (confidence whether the song is acoustic) between 0 and 100.
+
+#### `--minimumDanceability`
+
+Format: `--minimumDanceability MINIMUMDANCEABILITY`
+
+Minimum permitted value of song feature `danceability` (how suitable the song is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity) between 0 and 100.
+
+#### `--minimumEnergy`
+
+Format: `--minimumEnergy MINIMUMENERGY`
+
+Minimum permitted value of song feature `energy` (perceptual measure of intensity and activity; typically, energetic tracks feel fast, loud, and noisy) between 0 and 100.
+
+#### `--minimumInstrumentalness`
+
+Format: `--minimumInstrumentalness MINIMUMINSTRUMENTALNESS`
+
+Minimum permitted value of song feature `instrumentalness` (whether a track contains no vocals; 'ooh' and 'aah' sounds are treated as instrumental in this context) between 0 and 100.
+
+#### `--minimumLiveness`
+
+Format: `--minimumLiveness MINIMUMLIVENESS`
+
+Minimum permitted value of song feature `liveness` (confidence whether an audience is present in the recording) between 0 and 100.
+
+#### `--minimumSpeechiness`
+
+Format: `--minimumSpeechiness MINIMUMSPEECHINESS`
+
+Minimum permitted value of song feature `speechiness` (presence of spoken words in the song; values above 66 are probably made entirely of spoken words) between 0 and 100.
+
+#### `--minimumTempo`
+
+Format: `--minimumTempo MINIMUMTEMPO`
+
+Minimum permitted value of song feature `tempo` (tempo of the song in beats per minute) between 0 and 100.
+
 #### `--minimumValence`
 
 Format: `--minimumValence MINIMUMVALENCE`
 
 Minimum permitted value of song feature `valence` (musical positiveness conveyed by the song) between 0 and 100.
+
+#### `--maximumAcousticness`
+
+Format: `--maximumAcousticness MAXIMUMACOUSTICNESS`
+
+Maximum permitted value of song feature `acousticness` (confidence whether the song is acoustic) between 0 and 100.
+
+#### `--maximumDanceability`
+
+Format: `--maximumDanceability MAXIMUMDANCEABILITY`
+
+Maximum permitted value of song feature `danceability` (how suitable the song is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity) between 0 and 100.
+
+#### `--maximumEnergy`
+
+Format: `--maximumEnergy MAXIMUMENERGY`
+
+Maximum permitted value of song feature `energy` (perceptual measure of intensity and activity; typically, energetic tracks feel fast, loud, and noisy) between 0 and 100.
+
+#### `--maximumInstrumentalness`
+
+Format: `--maximumInstrumentalness MAXIMUMINSTRUMENTALNESS`
+
+Maximum permitted value of song feature `instrumentalness` (whether a track contains no vocals; 'ooh' and 'aah' sounds are treated as instrumental in this context) between 0 and 100.
+
+#### `--maximumLiveness`
+
+Format: `--maximumLiveness MAXIMUMLIVENESS`
+
+Maximum permitted value of song feature `liveness` (confidence whether an audience is present in the recording) between 0 and 100.
+
+#### `--maximumSpeechiness`
+
+Format: `--maximumSpeechiness MAXIMUMSPEECHINESS`
+
+Maximum permitted value of song feature `speechiness` (presence of spoken words in the song; values above 66 are probably made entirely of spoken words) between 0 and 100.
+
+#### `--maximumTempo`
+
+Format: `--maximumTempo MAXIMUMTEMPO`
+
+Maximum permitted value of song feature `tempo` (tempo of the song in beats per minute) between 0 and 100.
 
 #### `--maximumValence`
 

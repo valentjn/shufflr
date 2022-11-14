@@ -176,18 +176,23 @@ class Configuration(object):
         help=f"Weight of song feature `{featureName}` ({featureDescription}).",
       )
 
-      if featureName not in ["differentArtist", "genre", "key"]:
-        capitalFeatureName = featureName[0].upper() + featureName[1:]
-        songSelectionArgumentGroup.add_argument(
-          f"--minimum{capitalFeatureName}",
-          type=float,
-          help=f"Minimum permitted value of song feature `{featureName}` ({featureDescription}) between 0 and 100.",
-        )
-        songSelectionArgumentGroup.add_argument(
-          f"--maximum{capitalFeatureName}",
-          type=float,
-          help=f"Maximum permitted value of song feature `{featureName}` ({featureDescription}) between 0 and 100.",
-        )
+    for featureName, featureDescription in zip(featureNames, featureDescriptions):
+      if featureName in ["differentArtist", "genre", "key"]: continue
+      capitalFeatureName = featureName[0].upper() + featureName[1:]
+      songSelectionArgumentGroup.add_argument(
+        f"--minimum{capitalFeatureName}",
+        type=float,
+        help=f"Minimum permitted value of song feature `{featureName}` ({featureDescription}) between 0 and 100.",
+      )
+
+    for featureName, featureDescription in zip(featureNames, featureDescriptions):
+      if featureName in ["differentArtist", "genre", "key"]: continue
+      capitalFeatureName = featureName[0].upper() + featureName[1:]
+      songSelectionArgumentGroup.add_argument(
+        f"--maximum{capitalFeatureName}",
+        type=float,
+        help=f"Maximum permitted value of song feature `{featureName}` ({featureDescription}) between 0 and 100.",
+      )
 
     tspArgumentGroup = argumentParser.add_argument_group("Traveling salesperson problem (TSP) arguments")
     tspArgumentGroup.add_argument(
