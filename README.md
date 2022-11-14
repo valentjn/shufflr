@@ -29,7 +29,7 @@ Let's assume this is your input playlist:
 * Avicii &ndash; Levels (Original Mix)
 * The White Stripes &ndash; Seven Nation Army
 
-With this input playlist, Shufflr generates the following output playlist (this information is printed as a table to standard output):
+With this input playlist, Shufflr might generate the following output playlist. This information is printed as a table to standard output, and optionally a new Spotify playlist can be created.
 
 | Artist            | Title                            | Dst     | Acs | Dnc | Enr | Ins | Key       | Lvn | Spc | Tmp | Vln |
 | ----------------- | -------------------------------- | ------: | --: | --: | --: | --: | --------: | --: | --: | --: | --: |
