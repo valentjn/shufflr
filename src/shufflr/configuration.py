@@ -99,7 +99,12 @@ class Configuration(object):
       default=argparse.SUPPRESS,
       help="Show a help message and exit.",
     )
-    outputArgumentGroup.add_argument("-q", "--quiet", action="store_true", help="Only print warnings and errors.")
+    outputArgumentGroup.add_argument(
+      "-q",
+      "--quiet",
+      action="store_true",
+      help="Only print warnings and errors. Overrides `--verbose`.",
+    )
     outputArgumentGroup.add_argument(
       "-v",
       "--verbose",

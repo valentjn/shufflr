@@ -93,7 +93,7 @@ Show a help message and exit.
 
 #### `-q` / `--quiet`
 
-Only print warnings and errors.
+Only print warnings and errors. Overrides `--verbose`.
 
 #### `-v` / `--verbose`
 
