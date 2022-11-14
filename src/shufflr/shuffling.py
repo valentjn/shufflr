@@ -5,10 +5,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import datetime
 import functools
 import math
 import shutil
-from typing import cast, List, Sequence, Set, TYPE_CHECKING
+from typing import cast, List, Optional, Sequence, Set, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -22,6 +23,72 @@ if TYPE_CHECKING:
   import shufflr.track
 
 
+class RoutingMonitor(object):
+  def __init__(
+    self,
+    routingModel: pywrapcp.RoutingModel,
+    improvementSize: float,
+    improvementTimeout: datetime.timedelta,
+  ) -> None:
+    self.routingModel = routingModel
+    self.improvementSize = improvementSize
+    self.improvementTimeout = improvementTimeout
+    self._solutionTimes: List[datetime.datetime] = []
+    self._currentObjectiveValues: List[float] = []
+    self._bestObjectiveValues: List[float] = []
+    self._didHitImprovementTimeout = False
+
+  @property
+  def didHitImprovementTimeout(self) -> bool:
+    return self._didHitImprovementTimeout
+
+  def __call__(self) -> None:
+    solutionTime = datetime.datetime.now()
+    currentObjectiveValue = self.routingModel.CostVar().Min()
+    bestObjectiveValue = (min(currentObjectiveValue, self._bestObjectiveValues[-1])
+                          if len(self._bestObjectiveValues) > 0 else currentObjectiveValue)
+    self._solutionTimes.append(solutionTime)
+    self._currentObjectiveValues.append(currentObjectiveValue)
+    self._bestObjectiveValues.append(bestObjectiveValue)
+
+    comparisonSolutionIndex = self.SearchSolutionTime(solutionTime - self.improvementTimeout)
+
+    if (
+      (comparisonSolutionIndex is not None) and
+      (
+        (self._bestObjectiveValues[comparisonSolutionIndex] - bestObjectiveValue) /
+        (self._bestObjectiveValues[0] - bestObjectiveValue) < self.improvementSize
+      )
+    ):
+      self._didHitImprovementTimeout = True
+      self.routingModel.solver().FinishCurrentSearch()
+
+  def SearchSolutionTime(self, queryTime: datetime.datetime) -> Optional[int]:
+    return next(
+      (
+        len(self._solutionTimes) - reversedSolutionIndex - 1
+        for reversedSolutionIndex, solutionTime in enumerate(reversed(self._solutionTimes))
+        if solutionTime <= queryTime
+      ),
+      None,
+    )
+
+  def PlotObjectiveValue(self) -> None:
+    import matplotlib.pyplot as plt
+
+    figure = plt.figure()
+    axes = figure.add_subplot()
+    times = [(time - self._solutionTimes[0]).total_seconds() for time in self._solutionTimes]
+    axes.plot(times, self._currentObjectiveValues, ".-")
+    axes.plot(times, self._bestObjectiveValues, ".-")
+    axes.set_title("Evolution of TSP Objective Value")
+    axes.set_xlabel("Time [s]")
+    axes.set_ylabel("Objective value")
+    axes.legend(["Current solution", "Best known solution"])
+    gLogger.info("Showing TSP plot. Close plot to continue...")
+    plt.show()
+
+
 def ShuffleTracks(
   loginUserID: str,
   tracks: Set["shufflr.track.Track"],
@@ -31,7 +98,10 @@ def ShuffleTracks(
   distanceMatrix = ComputeDistanceMatrix(loginUserID, trackList, configuration)
   shuffledTrackIndices = SolveTravelingSalespersonProblem(
     distanceMatrix,
-    configuration.tspSolutionDuration,
+    configuration.tspTimeout,
+    configuration.tspImprovementSize,
+    configuration.tspImprovementTimeout,
+    plot=configuration.plotTSP,
     verbose=configuration.verbose,
   )
   shuffledTrackList = [trackList[trackIndex] for trackIndex in shuffledTrackIndices]
@@ -69,7 +139,10 @@ def ComputeDistanceMatrix(
 
 def SolveTravelingSalespersonProblem(
   distanceMatrix: npt.NDArray[np.float_],
-  tspSolutionDuration: float,
+  timeout: datetime.timedelta,
+  improvementSize: float,
+  improvementTimeout: datetime.timedelta,
+  plot: bool = False,
   verbose: int = 0,
 ) -> List[int]:
   integerDistanceScalingFactor = 1000
@@ -92,12 +165,18 @@ def SolveTravelingSalespersonProblem(
     functools.partial(TravelingSalespersonDistanceCallback, integerDistanceMatrix, routingIndexManager)
   )
   routingModel.SetArcCostEvaluatorOfAllVehicles(transitCallbackIndex)
+  routingMonitor = RoutingMonitor(routingModel, improvementSize, improvementTimeout)
+  routingModel.AddAtSolutionCallback(routingMonitor)
   searchParameters = pywrapcp.DefaultRoutingSearchParameters()
   searchParameters.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-  searchParameters.time_limit.seconds = math.ceil(tspSolutionDuration)
+  searchParameters.time_limit.seconds = math.ceil(timeout.total_seconds())
   searchParameters.log_search = verbose >= 1
   solution = routingModel.SolveWithParameters(searchParameters)
-  gLogger.info(f"Found solution of TSP with objective value {solution.ObjectiveValue()}.")
+  stoppingReason = "improvement timeout" if routingMonitor.didHitImprovementTimeout else "timeout"
+  gLogger.info(
+    f"Using solution of TSP with objective value {solution.ObjectiveValue()} (stopping reason: {stoppingReason})."
+  )
+  if plot: routingMonitor.PlotObjectiveValue()
 
   indices = []
   index = solution.Value(routingModel.NextVar(routingModel.Start(0)))

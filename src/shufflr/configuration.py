@@ -6,6 +6,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import argparse
+import datetime
 import json
 import pathlib
 import re
@@ -48,12 +49,15 @@ class Configuration(object):
     self.outputPlaylistIsPublic = False
     self.outputPlaylistSpecifier: Optional[PlaylistSpecifier] = None
     self.overwriteOutputPlaylist = False
+    self.plotTSP = False
     self.redirectURI = "http://127.0.0.1:11793/"
     self.resetAuthenticationCache = False
     self.resetRequestCache = False
     self.speechinessWeight = 1.0
     self.tempoWeight = 2.0
-    self.tspSolutionDuration: float = 10.0
+    self.tspImprovementSize = 0.05
+    self.tspImprovementTimeout = datetime.timedelta(seconds=3.0)
+    self.tspTimeout = datetime.timedelta(seconds=15.0)
     self.userAliases = UserAliases()
     self.valenceWeight = 1.0
     self.verbose = 0
@@ -145,13 +149,6 @@ class Configuration(object):
       type=int,
       help="Maximum number of songs in the output playlist. If omitted, then all songs are taken."
     )
-    songSelectionArgumentGroup.add_argument(
-      "--tspSolutionDuration",
-      type=float,
-      default=defaultConfiguration.tspSolutionDuration if useDefaults else argparse.SUPPRESS,
-      help="Number of seconds taken to solve the traveling salesperson problem heuristically. "
-      "For technical reasons, the duration is rounded up to the next integer.",
-    )
 
     featureNames = ["acousticness", "danceability", "differentArtist", "energy", "genre", "instrumentalness",
                     "key", "liveness", "speechiness", "tempo", "valence"]
@@ -191,6 +188,37 @@ class Configuration(object):
           type=float,
           help=f"Maximum permitted value of song feature `{featureName}` ({featureDescription}) between 0 and 100.",
         )
+
+    tspArgumentGroup = argumentParser.add_argument_group("Traveling salesperson problem (TSP) arguments")
+    tspArgumentGroup.add_argument(
+      "--tspImprovementSize",
+      type=float,
+      default=defaultConfiguration.tspImprovementSize if useDefaults else argparse.SUPPRESS,
+      help="If, while solving the TSP, the improvement of the objective value in the last `TSPIMPROVEMENTTIMEOUT` "
+      "seconds (see `--tspImprovementTimeout`) falls below `TSPIMPROVEMENTSIZE` times the improvement since the "
+      "initial solution, then the search is stopped and the best known solution is used. "
+      "A lower value of `TSPIMPROVEMENTSIZE` and a higher value of `TSPIMPROVEMENTTIMEOUT` "
+      "usually lead to better solutions.",
+    )
+    tspArgumentGroup.add_argument(
+      "--tspImprovementTimeout",
+      type=Configuration._ParseDuration,
+      default=defaultConfiguration.tspImprovementTimeout if useDefaults else argparse.SUPPRESS,
+      help="See `--tspImprovementSize`.",
+    )
+    tspArgumentGroup.add_argument(
+      "--plotTSP",
+      action="store_true",
+      help="Plot the evolution of the objective value while solving the TSP (Matplotlib required).",
+    )
+    tspArgumentGroup.add_argument(
+      "--tspTimeout",
+      type=Configuration._ParseDuration,
+      default=defaultConfiguration.tspTimeout if useDefaults else argparse.SUPPRESS,
+      help="Maximum number of seconds for the TSP solution. "
+      "For technical reasons, the duration is rounded up to the next integer. "
+      "A higher value leads to better solutions.",
+    )
 
     outputPlaylistArgumentGroup = argumentParser.add_argument_group("Output playlist arguments")
     outputPlaylistArgumentGroup.add_argument(
@@ -253,6 +281,10 @@ class Configuration(object):
     )
 
     return argumentParser
+
+  @staticmethod
+  def _ParseDuration(string: str) -> datetime.timedelta:
+    return datetime.timedelta(seconds=float(string))
 
   def ReadFile(self, path: pathlib.Path) -> None:
     fileConfiguration = json.loads(path.read_text())

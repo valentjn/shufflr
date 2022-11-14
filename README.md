@@ -80,7 +80,8 @@ pip3 install .
 
 * **[Output arguments](#output-arguments):** [`-h` / `--help`](#-h----help), [`-q` / `--quiet`](#-q----quiet), [`-v` / `--verbose`](#-v----verbose)
 * **[Input playlist arguments](#input-playlist-arguments):** [`-i` / `--inputPlaylists`](#-i----inputplaylists), [`-w` / `--inputPlaylistWeights`](#-w----inputplaylistweights)
-* **[Song selection arguments](#song-selection-arguments):** [`--maximumNumberOfSongs`](#--maximumnumberofsongs), [`--tspSolutionDuration`](#--tspsolutionduration), [`--acousticnessWeight`](#--acousticnessweight), [`--minimumAcousticness`](#--minimumacousticness), [`--maximumAcousticness`](#--maximumacousticness), [`--danceabilityWeight`](#--danceabilityweight), [`--minimumDanceability`](#--minimumdanceability), [`--maximumDanceability`](#--maximumdanceability), [`--differentArtistWeight`](#--differentartistweight), [`--energyWeight`](#--energyweight), [`--minimumEnergy`](#--minimumenergy), [`--maximumEnergy`](#--maximumenergy), [`--genreWeight`](#--genreweight), [`--instrumentalnessWeight`](#--instrumentalnessweight), [`--minimumInstrumentalness`](#--minimuminstrumentalness), [`--maximumInstrumentalness`](#--maximuminstrumentalness), [`--keyWeight`](#--keyweight), [`--livenessWeight`](#--livenessweight), [`--minimumLiveness`](#--minimumliveness), [`--maximumLiveness`](#--maximumliveness), [`--speechinessWeight`](#--speechinessweight), [`--minimumSpeechiness`](#--minimumspeechiness), [`--maximumSpeechiness`](#--maximumspeechiness), [`--tempoWeight`](#--tempoweight), [`--minimumTempo`](#--minimumtempo), [`--maximumTempo`](#--maximumtempo), [`--valenceWeight`](#--valenceweight), [`--minimumValence`](#--minimumvalence), [`--maximumValence`](#--maximumvalence)
+* **[Song selection arguments](#song-selection-arguments):** [`--maximumNumberOfSongs`](#--maximumnumberofsongs), [`--acousticnessWeight`](#--acousticnessweight), [`--minimumAcousticness`](#--minimumacousticness), [`--maximumAcousticness`](#--maximumacousticness), [`--danceabilityWeight`](#--danceabilityweight), [`--minimumDanceability`](#--minimumdanceability), [`--maximumDanceability`](#--maximumdanceability), [`--differentArtistWeight`](#--differentartistweight), [`--energyWeight`](#--energyweight), [`--minimumEnergy`](#--minimumenergy), [`--maximumEnergy`](#--maximumenergy), [`--genreWeight`](#--genreweight), [`--instrumentalnessWeight`](#--instrumentalnessweight), [`--minimumInstrumentalness`](#--minimuminstrumentalness), [`--maximumInstrumentalness`](#--maximuminstrumentalness), [`--keyWeight`](#--keyweight), [`--livenessWeight`](#--livenessweight), [`--minimumLiveness`](#--minimumliveness), [`--maximumLiveness`](#--maximumliveness), [`--speechinessWeight`](#--speechinessweight), [`--minimumSpeechiness`](#--minimumspeechiness), [`--maximumSpeechiness`](#--maximumspeechiness), [`--tempoWeight`](#--tempoweight), [`--minimumTempo`](#--minimumtempo), [`--maximumTempo`](#--maximumtempo), [`--valenceWeight`](#--valenceweight), [`--minimumValence`](#--minimumvalence), [`--maximumValence`](#--maximumvalence)
+* **[Traveling salesperson problem (TSP) arguments](#traveling-salesperson-problem-tsp-arguments):** [`--tspImprovementSize`](#--tspimprovementsize), [`--tspImprovementTimeout`](#--tspimprovementtimeout), [`--plotTSP`](#--plottsp), [`--tspTimeout`](#--tsptimeout)
 * **[Output playlist arguments](#output-playlist-arguments):** [`-o` / `--outputPlaylist`](#-o----outputplaylist), [`--outputPlaylistDescription`](#--outputplaylistdescription), [`--outputPlaylistIsPublic`](#--outputplaylistispublic), [`-f` / `--overwriteOutputPlaylist`](#-f----overwriteoutputplaylist)
 * **[API arguments](#api-arguments):** [`--clientID`](#--clientid), [`--clientSecret`](#--clientsecret), [`--redirectURI`](#--redirecturi), [`--resetAuthenticationCache`](#--resetauthenticationcache), [`--disableRequestCache`](#--disablerequestcache), [`--resetRequestCache`](#--resetrequestcache)
 
@@ -121,12 +122,6 @@ Weights for the shuffling of the input playlist. Specify one weight per input pl
 Format: `--maximumNumberOfSongs MAXIMUMNUMBEROFSONGS`
 
 Maximum number of songs in the output playlist. If omitted, then all songs are taken.
-
-#### `--tspSolutionDuration`
-
-Format: `--tspSolutionDuration TSPSOLUTIONDURATION`
-
-Number of seconds taken to solve the traveling salesperson problem heuristically. For technical reasons, the duration is rounded up to the next integer. (default value: `10.0`)
 
 #### `--acousticnessWeight`
 
@@ -289,6 +284,30 @@ Minimum permitted value of song feature `valence` (musical positiveness conveyed
 Format: `--maximumValence MAXIMUMVALENCE`
 
 Maximum permitted value of song feature `valence` (musical positiveness conveyed by the song) between 0 and 100.
+
+### Traveling Salesperson Problem (TSP) Arguments
+
+#### `--tspImprovementSize`
+
+Format: `--tspImprovementSize TSPIMPROVEMENTSIZE`
+
+If, while solving the TSP, the improvement of the objective value in the last `TSPIMPROVEMENTTIMEOUT` seconds (see `--tspImprovementTimeout`) falls below `TSPIMPROVEMENTSIZE` times the improvement since the initial solution, then the search is stopped and the best known solution is used. A lower value of `TSPIMPROVEMENTSIZE` and a higher value of `TSPIMPROVEMENTTIMEOUT` usually lead to better solutions. (default value: `0.05`)
+
+#### `--tspImprovementTimeout`
+
+Format: `--tspImprovementTimeout TSPIMPROVEMENTTIMEOUT`
+
+See `--tspImprovementSize`. (default value: `0:00:03`)
+
+#### `--plotTSP`
+
+Plot the evolution of the objective value while solving the TSP (Matplotlib required).
+
+#### `--tspTimeout`
+
+Format: `--tspTimeout TSPTIMEOUT`
+
+Maximum number of seconds for the TSP solution. For technical reasons, the duration is rounded up to the next integer. A higher value leads to better solutions. (default value: `0:00:15`)
 
 ### Output Playlist Arguments
 
