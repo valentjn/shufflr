@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class Playlist(object):
-  def __init__(self, playlistID: str, userID: str, name: str, trackIDs: Sequence[str]):
+  def __init__(self, playlistID: str, userID: str, name: str, trackIDs: Sequence[str]) -> None:
     self.playlistID = playlistID
     self.userID = userID
     self.name = name
