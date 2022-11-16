@@ -8,4 +8,5 @@
 /.shufflr-configuration.json
 /.shufflr-request-cache.sqlite.xz
 /.mypy_cache/
+/.venv/
 /.vscode/
