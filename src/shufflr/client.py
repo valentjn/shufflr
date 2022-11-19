@@ -180,7 +180,10 @@ class Client(object):
     return [resultTrack["track"]["id"] for resultTrack in self._QueryAllItems(loginUserID, result)]
 
   def QueryArtist(self, loginUserID: str, artistID: str) -> shufflr.artist.Artist:
-    return self.QueryArtists(loginUserID, [artistID])[0]
+    try:
+      return self._artistCache[artistID]
+    except KeyError:
+      return self.QueryArtists(loginUserID, [artistID])[0]
 
   def QueryArtists(self, loginUserID: str, artistIDs: Sequence[str]) -> List[shufflr.artist.Artist]:
     pageSize = 50

@@ -8,7 +8,7 @@
 import json
 import math
 import pathlib
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, FrozenSet, Iterable, List, Optional, Sequence, Tuple
 
 
 def _NormalizeNumbers(numbers: Sequence[int]) -> List[float]:
@@ -38,16 +38,25 @@ class GenreDistanceComputer(object):
     }
 
   _data = _LoadData()
+  _cache: Dict[FrozenSet[str], Optional[float]] = {}
 
   @staticmethod
   def ComputeDistance(genre1: str, genre2: str) -> Optional[float]:
+    cacheKey = frozenset((genre1, genre2))
+
+    try:
+      return GenreDistanceComputer._cache[cacheKey]
+    except KeyError:
+      pass
+
     try:
       genreData1 = GenreDistanceComputer._data[genre1]
       genreData2 = GenreDistanceComputer._data[genre2]
     except KeyError:
+      GenreDistanceComputer._cache[cacheKey] = None
       return None
 
-    return math.sqrt((
+    distance = math.sqrt((
         (genreData1[0] - genreData2[0]) ** 2.0 +
         (genreData1[1] - genreData2[1]) ** 2.0 +
         (genreData1[2] - genreData2[2]) ** 2.0 +
@@ -55,6 +64,8 @@ class GenreDistanceComputer(object):
         (genreData1[4] - genreData2[4]) ** 2.0
       ) / 5.0
     )
+    GenreDistanceComputer._cache[cacheKey] = distance
+    return distance
 
 
 class Artist(object):
