@@ -70,7 +70,7 @@ class Artist(object):
     return hash(self.id)
 
   def ComputeDistance(self, other: "Artist") -> float:
-    if self == other:return 0.0
+    if self == other: return 0.0
     genreDistances = [
       GenreDistanceComputer.ComputeDistance(selfGenre, otherGenre)
       for selfGenre in self.genres for otherGenre in other.genres
