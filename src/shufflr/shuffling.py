@@ -9,7 +9,7 @@ import datetime
 import functools
 import math
 import shutil
-from typing import cast, List, Optional, Sequence, Set, TYPE_CHECKING
+from typing import cast, Iterable, List, Optional, Sequence, Set, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -23,69 +23,178 @@ if TYPE_CHECKING:
   import shufflr.track
 
 
+class Solution(object):
+  def __init__(
+    self,
+    nodeIndices: Iterable[int],
+    objectiveValue: float,
+    time: Optional[datetime.datetime] = None,
+  ) -> None:
+    self._nodeIndices = list(nodeIndices)
+    self._objectiveValue = objectiveValue
+    self._time = time if time is not None else datetime.datetime.now()
+
+  @property
+  def nodeIndices(self) -> List[int]:
+    return list(self._nodeIndices)
+
+  @property
+  def objectiveValue(self) -> float:
+    return self._objectiveValue
+
+  @property
+  def time(self) -> datetime.datetime:
+    return self._time
+
+
 class RoutingMonitor(object):
   def __init__(
     self,
     routingModel: pywrapcp.RoutingModel,
+    routingIndexManager: pywrapcp.RoutingIndexManager,
+    distanceMatrix: npt.NDArray[np.float_],
+    nodeNames: Iterable[str],
     improvementSize: float,
     improvementTimeout: datetime.timedelta,
   ) -> None:
-    self.routingModel = routingModel
-    self.improvementSize = improvementSize
-    self.improvementTimeout = improvementTimeout
-    self._solutionTimes: List[datetime.datetime] = []
-    self._currentObjectiveValues: List[float] = []
-    self._bestObjectiveValues: List[float] = []
+    if TYPE_CHECKING:
+      import matplotlib.animation
+
+    self._routingModel = routingModel
+    self._routingIndexManager = routingIndexManager
+    self._distanceMatrix = distanceMatrix
+    self._nodeNames = nodeNames
+    self._improvementSize = improvementSize
+    self._improvementTimeout = improvementTimeout
+
+    self._solutions: List[Solution] = []
+    self._bestSolutions: List[Solution] = []
     self._didHitImprovementTimeout = False
+    self._nodeEmbedding: Optional[npt.NDArray[np.float_]] = None
+    self._plotAnimations: List["matplotlib.animation.Animation"] = []
 
   @property
   def didHitImprovementTimeout(self) -> bool:
     return self._didHitImprovementTimeout
 
-  def __call__(self) -> None:
-    solutionTime = datetime.datetime.now()
-    currentObjectiveValue = self.routingModel.CostVar().Min()
-    bestObjectiveValue = (min(currentObjectiveValue, self._bestObjectiveValues[-1])
-                          if len(self._bestObjectiveValues) > 0 else currentObjectiveValue)
-    self._solutionTimes.append(solutionTime)
-    self._currentObjectiveValues.append(currentObjectiveValue)
-    self._bestObjectiveValues.append(bestObjectiveValue)
+  @property
+  def bestKnownSolution(self) -> Optional[Solution]:
+    return self._bestSolutions[-1] if len(self._bestSolutions) > 0 else None
 
-    comparisonSolutionIndex = self.SearchSolutionTime(solutionTime - self.improvementTimeout)
+  def __call__(self) -> None:
+    currentSolution = Solution(self._GetSolutionNodeIndices(), self._routingModel.CostVar().Min())
+    bestSolution = (
+      currentSolution
+      if (len(self._bestSolutions) == 0) or (currentSolution.objectiveValue <= self._bestSolutions[-1].objectiveValue)
+      else self._bestSolutions[-1]
+    )
+    self._solutions.append(currentSolution)
+    self._bestSolutions.append(bestSolution)
+    comparisonSolution = self._SearchBestSolutionByTime(currentSolution.time - self._improvementTimeout)
 
     if (
-      (comparisonSolutionIndex is not None) and
+      (comparisonSolution is not None) and
       (
-        (self._bestObjectiveValues[comparisonSolutionIndex] - bestObjectiveValue) /
-        (self._bestObjectiveValues[0] - bestObjectiveValue) < self.improvementSize
+        (comparisonSolution.objectiveValue - bestSolution.objectiveValue) /
+        (self._bestSolutions[0].objectiveValue - bestSolution.objectiveValue) < self._improvementSize
       )
     ):
       self._didHitImprovementTimeout = True
-      self.routingModel.solver().FinishCurrentSearch()
+      self._routingModel.solver().FinishCurrentSearch()
 
-  def SearchSolutionTime(self, queryTime: datetime.datetime) -> Optional[int]:
+  def _SearchBestSolutionByTime(self, queryTime: datetime.datetime) -> Optional[Solution]:
     return next(
       (
-        len(self._solutionTimes) - reversedSolutionIndex - 1
-        for reversedSolutionIndex, solutionTime in enumerate(reversed(self._solutionTimes))
-        if solutionTime <= queryTime
-      ),
-      None,
+        bestSolution for solution, bestSolution in zip(reversed(self._solutions), reversed(self._bestSolutions))
+        if solution.time <= queryTime
+      ), None,
     )
+
+  def _GetSolutionNodeIndices(self) -> List[int]:
+    indices = []
+    index = self._routingModel.NextVar(self._routingModel.Start(0)).Value()
+
+    while not self._routingModel.IsEnd(index):
+      indices.append(self._routingIndexManager.IndexToNode(index))
+      index = self._routingModel.NextVar(index).Value()
+
+    return indices
 
   def PlotObjectiveValue(self) -> None:
     import matplotlib.pyplot as plt
 
+    times = [(solution.time - self._solutions[0].time).total_seconds() for solution in self._solutions]
+
     figure = plt.figure()
     axes = figure.add_subplot()
-    times = [(time - self._solutionTimes[0]).total_seconds() for time in self._solutionTimes]
-    axes.plot(times, self._currentObjectiveValues, ".-")
-    axes.plot(times, self._bestObjectiveValues, ".-")
+    axes.plot(times, [bestSolution.objectiveValue for bestSolution in self._bestSolutions], ".-")
+    axes.plot(times, [solution.objectiveValue for solution in self._solutions], ".-")
     axes.set_title("Evolution of TSP Objective Value")
     axes.set_xlabel("Time [s]")
     axes.set_ylabel("Objective value")
-    axes.legend(["Current solution", "Best known solution"])
-    gLogger.info("Showing TSP plot. Close plot to continue...")
+    axes.legend(["Best known solution", "Current solution"])
+
+  def PlotSolution(self, isAnimated: bool = False) -> None:
+    import matplotlib.animation
+    import matplotlib.patheffects
+    import matplotlib.pyplot as plt
+
+    if self._nodeEmbedding is None:
+      self._nodeEmbedding = RoutingMonitor._ComputeEmbeddingOfNodes(self._distanceMatrix)
+
+    solutionIndex = 0 if isAnimated else len(self._solutions) - 1
+    nodeIndices = self._bestSolutions[solutionIndex].nodeIndices
+
+    figure = plt.figure()
+    axes = figure.add_subplot()
+    bestSolutionLine, = axes.plot(self._nodeEmbedding[nodeIndices, 0], self._nodeEmbedding[nodeIndices, 1], "-")
+
+    if isAnimated:
+      currentSolutionLine, = axes.plot(self._nodeEmbedding[nodeIndices, 0], self._nodeEmbedding[nodeIndices, 1], "-")
+
+      def UpdatePlot(frame: int) -> List[plt.Line2D]:
+        assert self._nodeEmbedding is not None
+        bestSolutionNodeIndices = self._bestSolutions[frame].nodeIndices
+        bestSolutionLine.set_xdata(self._nodeEmbedding[bestSolutionNodeIndices, 0])
+        bestSolutionLine.set_ydata(self._nodeEmbedding[bestSolutionNodeIndices, 1])
+        currentSolutionNodeIndices = self._solutions[frame].nodeIndices
+        currentSolutionLine.set_xdata(self._nodeEmbedding[currentSolutionNodeIndices, 0])
+        currentSolutionLine.set_ydata(self._nodeEmbedding[currentSolutionNodeIndices, 1])
+        axes.set_title(axisTitleFormat.format(frame + 1))
+        return [currentSolutionLine, bestSolutionLine]
+
+      self._plotAnimations.append(matplotlib.animation.FuncAnimation(
+        figure,
+        UpdatePlot,
+        interval=50,
+        frames=len(self._solutions),
+      ))
+
+    axes.plot(self._nodeEmbedding[:, 0], self._nodeEmbedding[:, 1], "k.")
+
+    if not isAnimated:
+      for node, nodeName in zip(self._nodeEmbedding, self._nodeNames):
+        text = axes.text(node[0], node[1], f" {nodeName}", verticalalignment="center", fontsize=8)
+        text.set_path_effects([matplotlib.patheffects.withStroke(linewidth=2, foreground="w", alpha=0.7)])
+
+    axisTitleFormat = f"T-SNE Embedding and TSP Solution (Iteration {{}}/{len(self._solutions)})"
+    axes.set_title(axisTitleFormat.format(solutionIndex + 1))
+    axes.set_xlabel("$x_1$")
+    axes.set_ylabel("$x_2$")
+    axes.legend(["Best known solution"] + (["Current solution"] if isAnimated else []))
+
+  @staticmethod
+  def _ComputeEmbeddingOfNodes(distanceMatrix: npt.NDArray[np.float_]) -> npt.NDArray[np.float_]:
+    import sklearn.manifold
+
+    gLogger.info("Computing embedding of nodes...")
+    fitter = sklearn.manifold.TSNE(n_components=2, learning_rate="auto", metric="precomputed", init="random", perplexity=10.0)
+    return cast(npt.NDArray[np.float_], fitter.fit_transform(distanceMatrix))
+
+  def ShowPlots(self) -> None:
+    import matplotlib.pyplot as plt
+
+    gLogger.info("Showing TSP plots. Close plots to continue...")
     plt.show()
 
 
@@ -94,10 +203,19 @@ def ShuffleTracks(
   tracks: Set["shufflr.track.Track"],
   configuration: "shufflr.configuration.Configuration",
 ) -> List["shufflr.track.Track"]:
+  maximumArtistLength = 10
+  maximumTitleLength = 20
   trackList = list(tracks)
   distanceMatrix = ComputeDistanceMatrix(loginUserID, trackList, configuration)
+  nodeNames = [
+    "{} - {}".format(
+      TruncateString(", ".join(artist.name for artist in track.GetArtists(loginUserID)), maximumArtistLength),
+      TruncateString(track.name, maximumTitleLength),
+    ) for track in trackList
+  ]
   shuffledTrackIndices = SolveTravelingSalespersonProblem(
     distanceMatrix,
+    nodeNames,
     configuration.tspTimeout,
     configuration.tspImprovementSize,
     configuration.tspImprovementTimeout,
@@ -117,6 +235,10 @@ def ShuffleTracks(
     print(FormatTracks(loginUserID, shuffledTrackList, distances))
 
   return shuffledTrackList
+
+
+def TruncateString(string: str, maximumLength: int) -> str:
+  return string if len(string) <= maximumLength else f"{string[:maximumLength - 3]}..."
 
 
 def ComputeDistanceMatrix(
@@ -139,6 +261,7 @@ def ComputeDistanceMatrix(
 
 def SolveTravelingSalespersonProblem(
   distanceMatrix: npt.NDArray[np.float_],
+  nodeNames: Iterable[str],
   timeout: datetime.timedelta,
   improvementSize: float,
   improvementTimeout: datetime.timedelta,
@@ -165,7 +288,14 @@ def SolveTravelingSalespersonProblem(
     functools.partial(TravelingSalespersonDistanceCallback, integerDistanceMatrix, routingIndexManager)
   )
   routingModel.SetArcCostEvaluatorOfAllVehicles(transitCallbackIndex)
-  routingMonitor = RoutingMonitor(routingModel, improvementSize, improvementTimeout)
+  routingMonitor = RoutingMonitor(
+    routingModel,
+    routingIndexManager,
+    distanceMatrix,
+    nodeNames,
+    improvementSize,
+    improvementTimeout,
+  )
   routingModel.AddAtSolutionCallback(routingMonitor)
   searchParameters = pywrapcp.DefaultRoutingSearchParameters()
   searchParameters.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
@@ -176,16 +306,16 @@ def SolveTravelingSalespersonProblem(
   gLogger.info(
     f"Using solution of TSP with objective value {solution.ObjectiveValue()} (stopping reason: {stoppingReason})."
   )
-  if plot: routingMonitor.PlotObjectiveValue()
 
-  indices = []
-  index = solution.Value(routingModel.NextVar(routingModel.Start(0)))
+  if plot:
+    routingMonitor.PlotObjectiveValue()
+    routingMonitor.PlotSolution(isAnimated=False)
+    routingMonitor.PlotSolution(isAnimated=True)
+    routingMonitor.ShowPlots()
 
-  while not routingModel.IsEnd(index):
-    indices.append(routingIndexManager.IndexToNode(index))
-    index = solution.Value(routingModel.NextVar(index))
-
-  return indices
+  bestKnownSolution = routingMonitor.bestKnownSolution
+  if bestKnownSolution is None: raise RuntimeError("Could not find a solution.")
+  return bestKnownSolution.nodeIndices
 
 
 def TravelingSalespersonDistanceCallback(

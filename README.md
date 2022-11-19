@@ -301,7 +301,7 @@ See `--tspImprovementSize`. (default value: `0:00:03`)
 
 #### `--plotTSP`
 
-Plot the evolution of the objective value while solving the TSP (Matplotlib required).
+Plot information about the TSP solution process (Matplotlib and scikit-learn required).
 
 #### `--tspTimeout`
 

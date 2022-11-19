@@ -219,7 +219,7 @@ class Configuration(object):
     tspArgumentGroup.add_argument(
       "--plotTSP",
       action="store_true",
-      help="Plot the evolution of the objective value while solving the TSP (Matplotlib required).",
+      help="Plot information about the TSP solution process (Matplotlib and scikit-learn required).",
     )
     tspArgumentGroup.add_argument(
       "--tspTimeout",
